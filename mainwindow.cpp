@@ -2,10 +2,13 @@
 #include "ui_mainwindow.h"
 
 #include <QProcess>
+#include <QObject>
+#include <QMetaObject>
 #include <QResizeEvent>
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QShortcut>
+#include <iostream>
 
 MainWindow::MainWindow(QWidget* parent) :
 	QMainWindow(parent),
@@ -221,7 +224,7 @@ void MainWindow::send(QString str)
 
 		data = ecel_encrypt.readAll();
 	}
-	qDebug() << "Pos: " << (my_pos += str.length());
+	std::cerr << "Pos: " << (my_pos += str.length()) << std::endl;
 
 	if (is_client)
 	{
