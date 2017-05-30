@@ -1,0 +1,3 @@
+[submodule "ecel"]
+	path = ecel
+	url = https://github.com/ggwpez/ecel
