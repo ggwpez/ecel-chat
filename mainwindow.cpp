@@ -10,6 +10,8 @@
 #include <QShortcut>
 #include <QFile>
 #include <QTemporaryFile>
+#include <QDateTime>
+#include <QScrollBar>
 #include <iostream>
 
 MainWindow::MainWindow(QString cmd, QWidget* parent) :
@@ -20,6 +22,9 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	ui->setupUi(this);
 	ui->textBrowser->setStyleSheet("QTextBrowser { color: rgb(84, 165, 196); background: rgb(24, 24, 24); selection-background-color: rgb(25, 55, 84); }");
 	ui->textEdit   ->setStyleSheet("QTextEdit    { color: rgb(84, 165, 196); background: rgb(38, 38, 38); selection-background-color: rgb(25, 55, 84); }");
+	ui->textBrowser->setOpenLinks(false);
+	ui->textBrowser->setReadOnly(true);
+	ui->textBrowser->setUndoRedoEnabled(false);
 
 	new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this, SLOT(close()));
 	QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_B), this), &QShortcut::activated, [=]()
@@ -157,8 +162,10 @@ void MainWindow::client_disconnected()
 {
 	//QTcpSocket* disco_socket = qobject_cast<QTcpSocket *>(QObject::sender());
 
-	printl("Disconnected from Server");
+	printl("Connection lost, trying to reconnect");
 	is_client = false;
+
+
 }
 
 void MainWindow::resizeEvent(QResizeEvent* e)
@@ -287,12 +294,10 @@ void MainWindow::interpret_command(QString str)
 		ui->textBrowser->clear();
 	else if (cmd == "ls")
 	{
-		interpret_command("set_keys, 0, 0, /home/vados/.keys/keys/final/0000.key, /home/vados/.keys/keys/final/0001.key");
 		interpret_command("server, start, 127.0.0.1, 8080");
 	}
 	else if (cmd == "lc")
 	{
-		interpret_command("set_keys, 1, 0, /home/vados/.keys/keys/final/0001.key, /home/vados/.keys/keys/final/0000.key");
 		interpret_command("connect, 127.0.0.1, 8080");
 	}
 	else if (cmd == "set_keys")
@@ -375,20 +380,33 @@ void MainWindow::print(QString msg)
 
 void MainWindow::printl(QString msg, QString clr)
 {
+	QString time(QDateTime::currentDateTime().toString("[hh:mm:ss]"));
+
+	QScrollBar* bar = ui->textBrowser->verticalScrollBar();
+	bool scrolled_to_end = (bar->value() == bar->maximum());
+
 	if (clr.length())
-		ui->textBrowser->insertHtml("<font color=\"" +clr +"\">" +msg +"</font><br>");
+		ui->textBrowser->insertHtml(time +" <font color=\"" +clr +"\">" +msg +"</font><br>");
 	else
-		ui->textBrowser->insertHtml(msg +"<br>");
+		ui->textBrowser->insertHtml(time + " " +msg +"<br>");
+
+	// Scroll
+	{
+		if (scrolled_to_end)
+			bar->setValue(bar->maximum());
+		else
+			;
+	}
 }
 
 void MainWindow::printl_me(QString str)
 {
-	printl(me +" " +str, me_clr);
+	printl(me +": " +str, me_clr);
 }
 
 void MainWindow::printl_he(QString str)
 {
-	printl(he +" " +str, he_clr);
+	printl(he +": " +str, he_clr);
 }
 
 MainWindow::~MainWindow()
