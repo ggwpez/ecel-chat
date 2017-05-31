@@ -15,7 +15,7 @@ class MainWindow : public QMainWindow
 	Q_OBJECT
 
 public:
-	explicit MainWindow(QWidget *parent = 0);
+	explicit MainWindow(QString cmd, QWidget *parent = 0);
 	~MainWindow();
 
 private:
@@ -30,6 +30,7 @@ protected:
 	bool press_le_key(QKeyEvent* e);
 	bool eventFilter(QObject* obj, QEvent* event);
 	void interpret_input(QString str);
+	void interpret_commands(QString str);
 	void interpret_command(QString str);
 	void send(QString str);
 	void start_server(QString host, int port);

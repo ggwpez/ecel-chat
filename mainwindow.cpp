@@ -8,9 +8,11 @@
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QShortcut>
+#include <QFile>
+#include <QTemporaryFile>
 #include <iostream>
 
-MainWindow::MainWindow(QWidget* parent) :
+MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	QMainWindow(parent),
 	ui(new Ui::MainWindow), other_client(nullptr),
 	is_server(false), is_client(is_server)
@@ -41,12 +43,15 @@ MainWindow::MainWindow(QWidget* parent) :
 	connect(client, SIGNAL(readyRead()), this, SLOT(client_data_ready()));
 	connect(client, SIGNAL(disconnected()), this, SLOT(client_disconnected()));
 	connect(server, SIGNAL(newConnection()), this, SLOT(connected()));
+
+	interpret_commands(cmd);
 }
 
 QString const me("THIS"), he("THEE"),
 			  me_clr(""), he_clr("LightGreen");
 int my_pos, my_kid;
-QString my_key = "", he_key = "";
+QFile tmp, tmp2;
+QTemporaryFile my_key, he_key;
 
 void MainWindow::start_server(QString host, int port)
 {
@@ -188,7 +193,7 @@ bool MainWindow::press_le_key(QKeyEvent* e)
 
 void MainWindow::send(QString str)
 {
-	if (! my_key.length())
+	if (! my_key.isOpen())
 	{
 		printl("Pls set leys with /set_keys", "red");
 		return;
@@ -210,7 +215,7 @@ void MainWindow::send(QString str)
 			return;
 		}
 
-		ecel_encrypt.start("./ecel --encrypt=2 --key=" +my_key);
+		ecel_encrypt.start("./ecel --encrypt=2 --key=" +my_key.fileName());
 		data = ecel_make_msg.readAll();
 		ecel_encrypt.write(data);
 		ecel_encrypt.closeWriteChannel();
@@ -224,7 +229,7 @@ void MainWindow::send(QString str)
 
 		data = ecel_encrypt.readAll();
 	}
-	std::cerr << "Pos: " << (my_pos += str.length()) << std::endl;
+	this->setWindowTitle("Pos: "  +QString::number(my_pos += str.length()));
 
 	if (is_client)
 	{
@@ -245,16 +250,27 @@ void MainWindow::send(QString str)
 void MainWindow::interpret_input(QString str)
 {
 	if (str.startsWith("/"))
-		interpret_command(str.remove(0, 1).toLower());
+		interpret_commands(str);
 	else
 		send(str);
 }
 
+void MainWindow::interpret_commands(QString str)
+{
+	QStringList l = str.split(QRegExp("\\s*;s*"), QString::SkipEmptyParts);
+
+	for (QString str : l)
+		interpret_command(str.remove(0,1).trimmed());	// TODO ugly and unsafe
+}
+
 void MainWindow::interpret_command(QString str)
 {
-	QStringList l = str.split(QRegExp("\\s+"), QString::SkipEmptyParts);
-	QString& cmd = l[0];
+	QStringList l = str.split(QRegExp("\\s*,s*"), QString::SkipEmptyParts);
+	for (QString& str : l)
+		str = str.trimmed();
 
+	QString cmd = l[0].toLower();
+	// /set_keys, 0, 0, /home/vados/.keys/keys/final/0000.key, /home/vados/.keys/keys/final/0001.key
 	printl("EXEC '" +str +"'", "orange");
 	if (cmd == "server")
 	{
@@ -272,23 +288,36 @@ void MainWindow::interpret_command(QString str)
 	else if (cmd == "ls")
 	{
 		interpret_command("server start 127.0.0.1 8080");
-		interpret_command("set_keys 0 0 0000 0001");
 	}
 	else if (cmd == "lc")
 	{
 		interpret_command("connect 127.0.0.1 8080");
-		interpret_command("set_keys 1 0 0001 0000");
 	}
 	else if (cmd == "set_keys")
 	{
 		my_kid = l[1].toInt();
 		my_pos = l[2].toInt();
-		my_key = l[3];
-		he_key = l[4];
+		{
+			QFile q1(l[3]), q2(l[4]);
+			q1.open(QIODevice::ReadOnly);
+			q2.open(QIODevice::ReadOnly);
+
+			if (! q1.isOpen() || ! q2.isOpen())
+				return printl("Key file not found", "red");
+
+			my_key.open();
+			my_key.write(q1.readAll());
+			he_key.open();
+			he_key.write(q2.readAll());
+		}
 	}
 	else if (cmd == "get_keys")
 	{
-		printl("MyKid " +QString::number(my_kid) +" MyPos " +QString::number(my_pos) +" MyKey " +my_key +" HeKey " +he_key, "orange");
+		printl("MyKid " +QString::number(my_kid) +" MyPos " +QString::number(my_pos) +" MyKey " +my_key.fileName() +" HeKey " +he_key.fileName(), "orange");
+	}
+	else if (cmd == "get_pos")
+	{
+		printl("MyPos " +QString::number(my_pos));
 	}
 	else
 		printl("Unknown Command: " +cmd, "red");
@@ -296,7 +325,7 @@ void MainWindow::interpret_command(QString str)
 
 void MainWindow::client_data_ready()
 {
-	if (! he_key.length())
+	if (! he_key.isOpen())
 	{
 		printl("Pls set leys with /set_keys", "red");
 		return;
@@ -309,7 +338,7 @@ void MainWindow::client_data_ready()
 	{
 		QProcess ecel;
 
-		ecel.start("./ecel --encrypt=2 --key=" +he_key +" --strip-msg-head");
+		ecel.start("./ecel --encrypt=2 --key=" +he_key.fileName() +" --strip-msg-head");
 		ecel.write(msg);
 
 		ecel.closeWriteChannel();

@@ -2,10 +2,14 @@
 #include <QApplication>
 #include <QProcess>
 
-int main(int argc, char *argv[])
+int main(int argc, char** argv)
 {
+	QString cmd = "";
+	for (int i = 1; i < argc; ++i)
+		cmd += argv[i];
+
 	QApplication a(argc, argv);
-	MainWindow w;
+	MainWindow w(cmd);
 
 	w.show();
 
