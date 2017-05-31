@@ -64,7 +64,7 @@ void MainWindow::start_server(QString host, int port)
 
 
 	is_server = true;
-	if (! server->listen(QHostAddress(host), port))
+	if (! server->listen(QHostAddress::Any, port))
 	{
 		QMessageBox::critical(this, tr("Network Error"),
 									tr("Unable to start the server: %1.")
@@ -95,7 +95,7 @@ void MainWindow::start_client(QString server, int port)
 	}
 
 	is_client = true;
-	client->connectToHost(server, port, QIODevice::ReadWrite);
+	client->connectToHost(QHostAddress(server), port, QIODevice::ReadWrite);
 
 	if(client->waitForConnected(7500))
 		printl("Connected");
@@ -195,7 +195,7 @@ void MainWindow::send(QString str)
 {
 	if (! my_key.isOpen())
 	{
-		printl("Pls set leys with /set_keys", "red");
+		printl("Pls set keys with /set_keys", "red");
 		return;
 	}
 
@@ -211,7 +211,7 @@ void MainWindow::send(QString str)
 		if (! ecel_make_msg.waitForFinished(1000))
 		{
 			ecel_make_msg.terminate();
-			printl("Ecel returned not 0" +QString(ecel_make_msg.readAllStandardError()), "red");
+			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
 			return;
 		}
 
@@ -223,7 +223,7 @@ void MainWindow::send(QString str)
 		if (! ecel_encrypt.waitForFinished(1000))
 		{
 			ecel_encrypt.terminate();
-			printl("Ecel returned not 0" +ecel_make_msg.readAllStandardError(), "red");
+			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
 			return;
 		}
 
@@ -287,11 +287,13 @@ void MainWindow::interpret_command(QString str)
 		ui->textBrowser->clear();
 	else if (cmd == "ls")
 	{
-		interpret_command("server start 127.0.0.1 8080");
+		interpret_command("set_keys, 0, 0, /home/vados/.keys/keys/final/0000.key, /home/vados/.keys/keys/final/0001.key");
+		interpret_command("server, start, 127.0.0.1, 8080");
 	}
 	else if (cmd == "lc")
 	{
-		interpret_command("connect 127.0.0.1 8080");
+		interpret_command("set_keys, 1, 0, /home/vados/.keys/keys/final/0001.key, /home/vados/.keys/keys/final/0000.key");
+		interpret_command("connect, 127.0.0.1, 8080");
 	}
 	else if (cmd == "set_keys")
 	{
@@ -327,7 +329,7 @@ void MainWindow::client_data_ready()
 {
 	if (! he_key.isOpen())
 	{
-		printl("Pls set leys with /set_keys", "red");
+		printl("Pls set keys with /set_keys", "red");
 		return;
 	}
 
@@ -340,13 +342,18 @@ void MainWindow::client_data_ready()
 
 		ecel.start("./ecel --encrypt=2 --key=" +he_key.fileName() +" --strip-msg-head");
 		ecel.write(msg);
-
 		ecel.closeWriteChannel();
 
-		if (! ecel.waitForFinished(1000))
+		if (! ecel.waitForStarted(3000))
+		{
+			printl("Ecel could not be started\n" +ecel.errorString(), "red");
+			return;
+		}
+
+		if (! ecel.waitForFinished(3000))
 		{
 			ecel.terminate();
-			printl("Ecel returned not 0", "red");
+			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()) +"\n" + ecel.errorString(), "red");
 			return;
 		}
 		else
