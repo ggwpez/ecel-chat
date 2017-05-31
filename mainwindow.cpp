@@ -29,18 +29,21 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	ui->textBrowser->setUndoRedoEnabled(false);
 
 	new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this, SLOT(close()));
-	QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_B), this), &QShortcut::activated, [=]()
-	{
-		if (window()->windowFlags() & Qt::FramelessWindowHint)
-			window()->setWindowFlags(this->windowFlags() & ~Qt::FramelessWindowHint);
-		else
-			window()->setWindowFlags(Qt::FramelessWindowHint);
-		this->window()->show();
-	});
-	QObject::connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]()
-	{ window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
-	QObject::connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]()
-	{ window()->showMinimized(); });
+	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_B), this), &QShortcut::activated, [=]()
+		{
+			if (this->window()->windowFlags() & Qt::FramelessWindowHint)
+				this->window()->setWindowFlags(this->windowFlags() & ~Qt::FramelessWindowHint);
+			else
+				this->window()->setWindowFlags(Qt::FramelessWindowHint);
+			this->window()->show();
+		});
+	connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]()
+		{ this->window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
+	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]()
+		{ this->window()->showMinimized(); });
+	connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated, [=]()
+		{ this->ui->textEdit->clear(); });
+
 	qApp->installEventFilter(this);
 
 	client = new QTcpSocket();
@@ -184,15 +187,12 @@ void MainWindow::resizeEvent(QResizeEvent* e)
 
 bool MainWindow::eventFilter(QObject* obj, QEvent* e)
 {
-	if (obj == ui->textEdit)
-	{
-		if (e->type() == QEvent::KeyPress)
-			return press_le_key(static_cast<QKeyEvent*>(e));
-		else
-			return QObject::eventFilter(obj, e);
-	}
-	else
-		return QObject::eventFilter(obj, e);
+	if (e->type() == QEvent::KeyPress && obj == ui->textEdit)
+		return press_le_key(static_cast<QKeyEvent*>(e));
+	else if (e->type() == QEvent::FocusIn)	// TODO check what obj must equal here, i have no idea but it gets called 3-6 times
+		return this->ui->textEdit->setFocus(), 1;
+
+	return QObject::eventFilter(obj, e);
 }
 
 bool MainWindow::press_le_key(QKeyEvent* e)
