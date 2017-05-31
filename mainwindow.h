@@ -24,6 +24,8 @@ private:
 	QTcpServer* server;
 	bool bar_enabled = true;
 	bool is_server = false, is_client = false;
+	QString server_ip;
+	int server_port;
 
 protected:
 	void resizeEvent(QResizeEvent* e);

@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+QString version_str("0.01");
+
 #include <QProcess>
 #include <QObject>
 #include <QMetaObject>
@@ -99,6 +101,8 @@ void MainWindow::start_client(QString server, int port)
 		return;
 	}
 
+	server_ip = server;
+	server_port = port;
 	is_client = true;
 	client->connectToHost(QHostAddress(server), port, QIODevice::ReadWrite);
 
@@ -112,9 +116,9 @@ void MainWindow::stop_client()
 {
 	if (is_client)
 	{
+		is_client = false;
 		client->disconnectFromHost();
 		client->close();
-		is_client = false;
 		printl("Client stopped");
 	}
 }
@@ -161,11 +165,12 @@ void MainWindow::server_disconnected()
 void MainWindow::client_disconnected()
 {
 	//QTcpSocket* disco_socket = qobject_cast<QTcpSocket *>(QObject::sender());
+	printl("Connection lost");
 
-	printl("Connection lost, trying to reconnect");
-	is_client = false;
-
-
+	if (is_client)
+	{
+		start_client(server_ip, server_port);
+	}
 }
 
 void MainWindow::resizeEvent(QResizeEvent* e)
@@ -279,7 +284,11 @@ void MainWindow::interpret_command(QString str)
 	QString cmd = l[0].toLower();
 	// /set_keys, 0, 0, /home/vados/.keys/keys/final/0000.key, /home/vados/.keys/keys/final/0001.key
 	printl("EXEC '" +str +"'", "orange");
-	if (cmd == "server")
+	if (cmd == "version" || cmd == "ver")
+	{
+		printl("Version " +version_str);
+	}
+	else if (cmd == "server")
 	{
 		if (l[1] == "start")
 			start_server(l[2], l[3].toInt());
