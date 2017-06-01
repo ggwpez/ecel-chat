@@ -28,7 +28,7 @@ public slots:
 
 protected:
 	QTcpServer* socket;
-	std::vector<std::unique_ptr<QTcpSocket>> clients;
+	std::vector<QTcpSocket*> clients;
 
 	QString address;
 	int port;

@@ -19,7 +19,7 @@ public:
 	virtual bool start(QString add, int port) = 0;
 	virtual bool stop() = 0;
 	virtual bool send(QByteArray data) = 0;
-	virtual ~IConnector() { }
+	virtual ~IConnector() = 0;
 
 signals:
 	void on_data_out(QString str, QString clr);
@@ -33,5 +33,7 @@ protected:
 	Encoder::Key const& my_key;
 	Encoder::Key const& he_key;
 };
+
+inline IConnector::~IConnector() { }
 
 #endif // ICONNECTOR_HPP

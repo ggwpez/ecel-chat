@@ -1,7 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-
-QString version_str("0.01");
+#include "version.hpp"
 
 #include <QProcess>
 #include <QObject>
@@ -88,7 +87,10 @@ void MainWindow::send(QString str)
 		return;
 	}
 	else
+	{
 		this->connection->send(str.toUtf8());
+		printl_me(str);
+	}
 }
 
 bool MainWindow::start(char which, QString add, int port)
@@ -96,7 +98,7 @@ bool MainWindow::start(char which, QString add, int port)
 	if (! connection)
 	{
 		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(my_key, he_key)) : dynamic_cast<IConnector*>(new Client(my_key, he_key));
-		connect(connection, SIGNAL(on_data_out()), this, SLOT(printl()));
+		connect(connection, SIGNAL(on_data_out(QString,QString)), this, SLOT(printl(QString,QString)));
 	}
 
 	return connection && connection->start(add, port);
@@ -147,7 +149,7 @@ void MainWindow::interpret_command(QString str)
 	printl("EXEC '" +str +"'", "orange");
 	if (cmd == "version" || cmd == "ver")
 	{
-		printl("Version " +version_str);
+		printl("Build " +version);
 	}
 	else if (cmd == "server")
 	{
@@ -181,7 +183,7 @@ void MainWindow::interpret_command(QString str)
 			if (! q1.isOpen() || ! q2.isOpen())
 				return printl("Key file not found", "red");
 
-			// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
+			// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0000.key
 			// TODO this is retarded
 			my_key.file.open(); my_key.file.write(q1.readAll());
 			he_key.file.open(); he_key.file.write(q2.readAll());

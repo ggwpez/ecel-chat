@@ -1,5 +1,6 @@
 #include "server.hpp"
 #include "encoder.hpp"
+#include "version.hpp"
 
 #include <QScopedPointer>
 
@@ -76,7 +77,7 @@ void Server::on_data_ready()
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
 	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
 
-	emit on_data_out("Client: " +QString::fromUtf8(msg), "");
+	emit on_data_out("THEE: " +QString::fromUtf8(msg), "LightGreen");
 }
 
 void Server::on_connected()
@@ -85,13 +86,12 @@ void Server::on_connected()
 
 	if (client)
 	{
-		connect(client, SIGNAL(readyRead()), this, SLOT(on_client_data_ready()));
-		connect(client, SIGNAL(disconnected()), this, SLOT(on_client_disconnected()));
+		connect(client, SIGNAL(readyRead()), this, SLOT(on_data_ready()));
+		connect(client, SIGNAL(disconnected()), this, SLOT(on_disconnected()));
 
 		// TODO emplace back
-		this->clients.push_back(std::unique_ptr<QTcpSocket>(client));
+		this->clients.push_back(client);
 		emit on_data_out("Client connected", "");
-		this->send(QString("Hi from Server").toUtf8());
 	}
 	else
 		emit on_data_out("Weird error", "red");
@@ -103,7 +103,7 @@ void Server::on_disconnected()
 
 	for (size_t i = 0; i < clients.size(); ++i)
 	{
-		if (client == clients[i].get())
+		if (client == clients[i])
 			clients.erase(clients.begin() +i);
 	}
 

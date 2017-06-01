@@ -1,26 +1,29 @@
 #include "encoder.hpp"
 #include <QProcess>
+#include <QDebug>
 
 QByteArray Encoder::encode(const QByteArray& data, const Key& key)
 {
 	QProcess ecel_kid, ecel_make_msg, ecel_encrypt;
 
-	ecel_kid.start("./ecel --get-kid --key=" +key.file.fileName());
+	ecel_kid.start("./ecel --get=key_kid --key=" +key.file.fileName());
 	if (! ecel_kid.waitForFinished(1000))
 	{
 		ecel_kid.terminate();
-		//printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()), "red");
+		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()), "red");
 		return QByteArray();
 	}
 
-	ecel_make_msg.start("./ecel --create-msg --pos=" +QString::number(key.pos) +" --kid=" +QString::fromUtf8(ecel_kid.readAll()));
+	QString kid(QString::fromUtf8(ecel_kid.readAll()));
+
+	ecel_make_msg.start("./ecel --create-msg --pos=" +QString::number(key.pos) +" --kid=" +kid);
 	ecel_make_msg.write(data);
 	ecel_make_msg.closeWriteChannel();
 
 	if (! ecel_make_msg.waitForFinished(1000))
 	{
 		ecel_make_msg.terminate();
-		//printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
+		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
 		return QByteArray();
 	}
 
@@ -31,7 +34,7 @@ QByteArray Encoder::encode(const QByteArray& data, const Key& key)
 	if (! ecel_encrypt.waitForFinished(1000))
 	{
 		ecel_encrypt.terminate();
-		//printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
+		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
 		return QByteArray();
 	}
 
@@ -48,14 +51,14 @@ QByteArray Encoder::decode(const QByteArray& data, const Key& key)
 
 	if (! ecel.waitForStarted(3000))
 	{
-		//printl("Ecel could not be started\n" +ecel.errorString(), "red");
+		qDebug () << ("Ecel could not be started\n" +ecel.errorString(), "red");
 		return QByteArray();
 	}
 
 	if (! ecel.waitForFinished(3000))
 	{
 		ecel.terminate();
-		//printl("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()) +"\n" + ecel.errorString(), "red");
+		qDebug() << ("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()) +"\n" + ecel.errorString(), "red");
 		return QByteArray();
 	}
 

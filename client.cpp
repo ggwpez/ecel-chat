@@ -6,7 +6,9 @@ Client::Client(Encoder::Key const& my_key, const Encoder::Key& server_key)
 	  socket(new QTcpSocket())
 
 {
-
+	connect(socket, SIGNAL(readyRead()), this, SLOT(on_data_ready()));
+	connect(socket, SIGNAL(connected()), this, SLOT(on_connected()));
+	connect(socket, SIGNAL(disconnected()), this, SLOT(on_disconnected()));
 }
 
 Client::~Client()
@@ -70,7 +72,7 @@ void Client::on_data_ready()
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
 	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
 
-	emit on_data_out("Server: " +QString::fromUtf8(msg), "");
+	emit on_data_out("THEE: " +QString::fromUtf8(msg), "LightGreen");
 }
 
 void Client::on_connected()
@@ -82,5 +84,6 @@ void Client::on_connected()
 void Client::on_disconnected()
 {
 	this->address = "", this->port = 0;
+	socket->close();
 	emit on_data_out("Server disconnected", "");
 }

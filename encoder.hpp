@@ -10,6 +10,7 @@ public:
 	struct Key
 	{
 		Key() = default;
+		~Key() = default;
 
 		QTemporaryFile file;
 		unsigned long long pos;

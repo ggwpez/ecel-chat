@@ -22,7 +22,8 @@ HEADERS  += mainwindow.h \
 	server.hpp \
 	client.hpp \
 	iconnector.hpp \
-	encoder.hpp
+	encoder.hpp \
+    version.hpp
 
 FORMS    += mainwindow.ui
 QMAKE_CXXFLAGS += -std=c++11
