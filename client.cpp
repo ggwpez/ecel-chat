@@ -1,7 +1,7 @@
 #include "client.hpp"
 #include <QHostAddress>
 
-Client::Client(Encoder::Key const& my_key, const Encoder::Key& server_key)
+Client::Client(const EcelKey& my_key, const EcelKey& server_key)
 	: IConnector(my_key, server_key),
 	  socket(new QTcpSocket())
 
@@ -21,7 +21,7 @@ bool Client::start(QString add, int port)
 {
 	if (socket->isOpen())
 	{
-		emit on_data_out("Client is already started", "red");
+		emit on_error("Client is already started");
 		return false;
 	}
 
@@ -31,12 +31,12 @@ bool Client::start(QString add, int port)
 	{
 		this->address = add; this->port = port;
 
-		emit on_data_out("Connected to server", "");
+		emit on_internal_msg("Connected to server");
 		return true;
 	}
 	else
 	{
-		emit on_data_out("Could not connect to server", "red");
+		emit on_error("Could not connect to server");
 		return false;
 	}
 }
@@ -53,7 +53,7 @@ bool Client::stop()
 	}
 	else
 	{
-		emit on_data_out("Client already stopped", "red");
+		emit on_error("Client already stopped");
 		return false;
 	}
 }
@@ -72,18 +72,18 @@ void Client::on_data_ready()
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
 	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
 
-	emit on_data_out("THEE: " +QString::fromUtf8(msg), "LightGreen");
+	emit on_thee_msg(QString::fromUtf8(msg));
 }
 
 void Client::on_connected()
 {
 	this->address = "", this->port = 0;
-	emit on_data_out("Server connected", "");
+	emit on_internal_msg("Server connected");
 }
 
 void Client::on_disconnected()
 {
 	this->address = "", this->port = 0;
 	socket->close();
-	emit on_data_out("Server disconnected", "");
+	emit on_internal_msg("Server disconnected");
 }

@@ -4,7 +4,7 @@
 
 #include <QScopedPointer>
 
-Server::Server(const Encoder::Key& my_key, Encoder::Key const& client_key)
+Server::Server(const EcelKey& my_key, const EcelKey& client_key)
 	: IConnector(my_key, client_key),
 	  socket(new QTcpServer()),
 	  clients()
@@ -24,21 +24,21 @@ bool Server::start(QString add, int port)
 
 	if (socket->isListening())
 	{
-		emit on_data_out("Server is already started", "red");
+		emit on_error("Server is already started");
 		return false;
 	}
 
 	connect(socket, SIGNAL(newConnection()), this, SLOT(on_connected()));
 	if (! socket->listen(QHostAddress::Any, port))
 	{
-		emit on_data_out("Server cant listen on: " +new_position, "red");
+		emit on_error("Server cant listen on: " +new_position);
 		return false;
 	}
 	else
 	{
 		this->address = add; this->port = port;
 
-		emit on_data_out("Server listening on: " +new_position, "");
+		emit on_internal_msg("Server listening on: " +new_position);
 		return true;
 	}
 }
@@ -47,7 +47,7 @@ bool Server::stop()
 {
 	if (! socket->isListening())
 	{
-		emit on_data_out("Server is already not stopped", "red");
+		emit on_error("Server is already not stopped");
 		return false;
 	}
 	else
@@ -57,7 +57,7 @@ bool Server::stop()
 		clients.clear();
 
 		this->address = ""; this->port = 0;
-		emit on_data_out("Server stopped", "");
+		emit on_error("Server stopped");
 		return true;
 	}
 }
@@ -77,7 +77,7 @@ void Server::on_data_ready()
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
 	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
 
-	emit on_data_out("THEE: " +QString::fromUtf8(msg), "LightGreen");
+	emit on_thee_msg(QString::fromUtf8(msg));
 }
 
 void Server::on_connected()
@@ -91,10 +91,10 @@ void Server::on_connected()
 
 		// TODO emplace back
 		this->clients.push_back(client);
-		emit on_data_out("Client connected", "");
+		emit on_internal_msg("Client connected");
 	}
 	else
-		emit on_data_out("Weird error", "red");
+		emit on_error("Weird error");
 }
 
 void Server::on_disconnected()
@@ -107,5 +107,5 @@ void Server::on_disconnected()
 			clients.erase(clients.begin() +i);
 	}
 
-	emit on_data_out("Client disconnected", "");
+	emit on_error("Client disconnected");
 }

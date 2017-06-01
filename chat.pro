@@ -16,14 +16,16 @@ SOURCES += main.cpp\
 		mainwindow.cpp \
 	server.cpp \
 	client.cpp \
-	encoder.cpp
+	encoder.cpp \
+    ecel_key.cpp
 
 HEADERS  += mainwindow.h \
 	server.hpp \
 	client.hpp \
 	iconnector.hpp \
 	encoder.hpp \
-    version.hpp
+    version.hpp \
+    ecel_key.hpp
 
 FORMS    += mainwindow.ui
 QMAKE_CXXFLAGS += -std=c++11

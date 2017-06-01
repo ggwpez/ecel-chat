@@ -14,7 +14,7 @@
 class Server : public IConnector
 {
 public:
-	Server(Encoder::Key const& my_key, const Encoder::Key& client_key);
+	Server(EcelKey const& my_key, EcelKey const& client_key);
 	~Server();
 
 	bool start(QString add, int port) override;

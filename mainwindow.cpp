@@ -42,7 +42,7 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 
 QString const me("THIS"), he("THEE"),
 			  me_clr(""), he_clr("LightGreen");
-Encoder::Key* my_key,* he_key;
+EcelKey* my_key,* he_key;
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
@@ -91,7 +91,10 @@ bool MainWindow::start(char which, QString add, int port)
 	if (! connection)
 	{
 		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(*my_key, *he_key)) : dynamic_cast<IConnector*>(new Client(*my_key, *he_key));
-		connect(connection, SIGNAL(on_data_out(QString,QString)), this, SLOT(printl(QString,QString)));
+
+		connect(connection, &IConnector::on_error,		  [=](QString str) { this->printl(str, "red"); });
+		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->printl_he(str); });
+		connect(connection, &IConnector::on_internal_msg, [=](QString str) { this->printl(str, "orange"); });
 	}
 
 	return connection && connection->start(add, port);
@@ -165,8 +168,8 @@ void MainWindow::interpret_command(QString str)
 	}
 	else if (cmd == "set_keys")
 	{
-		my_key = new Encoder::Key(l[2], l[1].toLongLong());
-		he_key = new Encoder::Key(l[3], 0);
+		my_key = new EcelKey(l[2], l[1].toLongLong());
+		he_key = new EcelKey(l[3], 0);
 	}
 	else if (cmd == "get_keys")
 	{

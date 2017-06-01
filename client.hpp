@@ -11,7 +11,7 @@
 class Client : public IConnector
 {
 public:
-	Client(Encoder::Key const& my_key, Encoder::Key const& server_key);
+	Client(EcelKey const& my_key, EcelKey const& server_key);
 	~Client();
 
 	virtual bool start(QString add, int port) override;
