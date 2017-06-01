@@ -1,9 +1,10 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include <QMainWindow>
-#include <QTcpSocket>
-#include <QTcpServer>
+#include <QtWidgets/QMainWindow>
+
+#include "client.hpp"
+#include "server.hpp"
 
 namespace Ui
 {
@@ -19,13 +20,10 @@ public:
 	~MainWindow();
 
 private:
-	Ui::MainWindow *ui;
-	QTcpSocket* client,* other_client;
-	QTcpServer* server;
+	Ui::MainWindow* ui;
+
 	bool bar_enabled = true;
-	bool is_server = false, is_client = false;
-	QString server_ip;
-	int server_port;
+	IConnector* connection = nullptr;
 
 protected:
 	void resizeEvent(QResizeEvent* e);
@@ -35,22 +33,15 @@ protected:
 	void interpret_commands(QString str);
 	void interpret_command(QString str);
 	void send(QString str);
-	void start_server(QString host, int port);
-	void stop_server();
-	void start_client(QString server, int port);
-	void stop_client();
+	bool start(char which, QString add, int port);
+	bool stop(char which);
 
 	void print(QString msg);
-	void printl(QString msg, QString clr = "");
 	void printl_me(QString str);
 	void printl_he(QString str);
 
-private slots:
-	void server_data_ready();
-	void client_data_ready();
-	void connected();
-	void server_disconnected();
-	void client_disconnected();
+public slots:
+	void printl(QString msg, QString clr = "");
 };
 
 #endif // MAINWINDOW_H

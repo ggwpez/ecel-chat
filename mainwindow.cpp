@@ -7,19 +7,17 @@ QString version_str("0.01");
 #include <QObject>
 #include <QMetaObject>
 #include <QResizeEvent>
-#include <QKeyEvent>
-#include <QMessageBox>
 #include <QShortcut>
+#include <QScrollBar>
+#include <QKeyEvent>
 #include <QFile>
 #include <QTemporaryFile>
 #include <QDateTime>
-#include <QScrollBar>
 #include <iostream>
 
 MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	QMainWindow(parent),
-	ui(new Ui::MainWindow), other_client(nullptr),
-	is_server(false), is_client(is_server)
+	ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
 	ui->textBrowser->setStyleSheet("QTextBrowser { color: rgb(84, 165, 196); background: rgb(24, 24, 24); selection-background-color: rgb(25, 55, 84); }");
@@ -46,14 +44,6 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 
 	qApp->installEventFilter(this);
 
-	client = new QTcpSocket();
-	server = new QTcpServer();
-
-	client->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
-	connect(client, SIGNAL(readyRead()), this, SLOT(client_data_ready()));
-	connect(client, SIGNAL(disconnected()), this, SLOT(client_disconnected()));
-	connect(server, SIGNAL(newConnection()), this, SLOT(connected()));
-
 	interpret_commands(cmd);
 }
 
@@ -61,120 +51,7 @@ QString const me("THIS"), he("THEE"),
 			  me_clr(""), he_clr("LightGreen");
 int my_pos, my_kid;
 QFile tmp, tmp2;
-QTemporaryFile my_key, he_key;
-
-void MainWindow::start_server(QString host, int port)
-{
-	if (this->is_server)
-	{
-		QMessageBox::critical(this, tr("Network Error"),
-									tr("Program is in client state, client and server state are Exclusiv"));
-		return;
-	}
-
-
-	is_server = true;
-	if (! server->listen(QHostAddress::Any, port))
-	{
-		QMessageBox::critical(this, tr("Network Error"),
-									tr("Unable to start the server: %1.")
-									.arg(server->errorString()));
-		return;
-	}
-	else
-		printl("Server started");
-}
-
-void MainWindow::stop_server()
-{
-	if (is_server)
-	{
-		other_client->close();
-		server->close();
-		is_server = false;
-	}
-}
-
-void MainWindow::start_client(QString server, int port)
-{
-	if (this->is_server)
-	{
-		QMessageBox::critical(this, tr("Network Error"),
-									tr("Program is in server state, server and client state are Exclusiv"));
-		return;
-	}
-
-	server_ip = server;
-	server_port = port;
-	is_client = true;
-	client->connectToHost(QHostAddress(server), port, QIODevice::ReadWrite);
-
-	if(client->waitForConnected(7500))
-		printl("Connected");
-	else
-		printl("Couldnt connect");
-}
-
-void MainWindow::stop_client()
-{
-	if (is_client)
-	{
-		is_client = false;
-		client->disconnectFromHost();
-		client->close();
-		printl("Client stopped");
-	}
-}
-
-void MainWindow::connected()
-{
-	if (this->other_client)
-	{
-		QMessageBox::critical(this, tr("Network Error"),
-									tr("More than one client is not supported"));
-
-		return;
-	}
-
-	if ((this->other_client = server->nextPendingConnection()))
-	{
-		connect(other_client, SIGNAL(readyRead()), this, SLOT(client_data_ready()));
-		connect(other_client, SIGNAL(disconnected()), this, SLOT(server_disconnected()));
-
-		printl_me("connected");
-		send("Hi from Server");
-	}
-	else
-		printl("Error (this->other_client = server->nextPendingConnection()) == nullptr");
-}
-
-void MainWindow::server_disconnected()
-{
-	QTcpSocket* disco_socket = qobject_cast<QTcpSocket *>(QObject::sender());
-
-	if (disco_socket != other_client)
-	{
-		QMessageBox::critical(this, tr("Internal State Error"),
-									tr("Unknown client disconnected"));
-
-		abort();
-		return;
-	}
-
-	printl_he("disconnected");
-	disco_socket->deleteLater();
-}
-
-void MainWindow::client_disconnected()
-{
-	//QTcpSocket* disco_socket = qobject_cast<QTcpSocket *>(QObject::sender());
-	printl("Connection lost");
-
-	if (is_client)
-	{
-		start_client(server_ip, server_port);
-	}
-}
+Encoder::Key my_key, he_key;
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
@@ -190,7 +67,7 @@ bool MainWindow::eventFilter(QObject* obj, QEvent* e)
 	if (e->type() == QEvent::KeyPress && obj == ui->textEdit)
 		return press_le_key(static_cast<QKeyEvent*>(e));
 	else if (e->type() == QEvent::FocusIn)	// TODO check what obj must equal here, i have no idea but it gets called 3-6 times
-		return this->ui->textEdit->setFocus(), 1;
+		return this->ui->textEdit->setFocus(), QObject::eventFilter(obj, e);
 
 	return QObject::eventFilter(obj, e);
 }
@@ -205,58 +82,42 @@ bool MainWindow::press_le_key(QKeyEvent* e)
 
 void MainWindow::send(QString str)
 {
-	if (! my_key.isOpen())
+	if (! this->connection)
 	{
-		printl("Pls set keys with /set_keys", "red");
+		printl("Not connected", "red");
 		return;
 	}
+	else
+		this->connection->send(str.toUtf8());
+}
 
-	QByteArray data;
-	// Encrypt
+bool MainWindow::start(char which, QString add, int port)
+{
+	if (! connection)
 	{
-		QProcess ecel_make_msg, ecel_encrypt;
-
-		ecel_make_msg.start("./ecel --create-msg --pos=" +QString::number(my_pos) +" --kid=" +QString::number(my_kid));
-		ecel_make_msg.write(str.toUtf8());
-		ecel_make_msg.closeWriteChannel();
-
-		if (! ecel_make_msg.waitForFinished(1000))
-		{
-			ecel_make_msg.terminate();
-			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
-			return;
-		}
-
-		ecel_encrypt.start("./ecel --encrypt=2 --key=" +my_key.fileName());
-		data = ecel_make_msg.readAll();
-		ecel_encrypt.write(data);
-		ecel_encrypt.closeWriteChannel();
-
-		if (! ecel_encrypt.waitForFinished(1000))
-		{
-			ecel_encrypt.terminate();
-			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
-			return;
-		}
-
-		data = ecel_encrypt.readAll();
+		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(my_key, he_key)) : dynamic_cast<IConnector*>(new Client(my_key, he_key));
+		connect(connection, SIGNAL(on_data_out()), this, SLOT(printl()));
 	}
-	this->setWindowTitle("Pos: "  +QString::number(my_pos += str.length()));
 
-	if (is_client)
+	return connection && connection->start(add, port);
+}
+
+bool MainWindow::stop(char which)
+{
+	(void)which;
+
+	if (! connection)
 	{
-		client->write(data);
-		client->flush();
-		printl_me(str);
-	}
-	else if (is_server)
-	{
-		other_client->write(data);
-		other_client->flush();
-		printl_me(str);
+		printl("Nothing to close", "red");
+		return false;
 	}
 	else
-		printl("Thou is not connected");
+	{
+		bool ret(connection->stop());
+		delete connection;
+		connection = nullptr;
+		return ret;
+	}
 }
 
 void MainWindow::interpret_input(QString str)
@@ -282,7 +143,7 @@ void MainWindow::interpret_command(QString str)
 		str = str.trimmed();
 
 	QString cmd = l[0].toLower();
-	// /set_keys, 0, 0, /home/vados/.keys/keys/final/0000.key, /home/vados/.keys/keys/final/0001.key
+
 	printl("EXEC '" +str +"'", "orange");
 	if (cmd == "version" || cmd == "ver")
 	{
@@ -291,14 +152,14 @@ void MainWindow::interpret_command(QString str)
 	else if (cmd == "server")
 	{
 		if (l[1] == "start")
-			start_server(l[2], l[3].toInt());
+			start('s', l[2], l[3].toInt());
 		else if (l[1] == "stop")
-			stop_server();
+			stop('s');
 	}
 	else if (cmd == "connect")
-		start_client(l[1], l[2].toInt());
+		start('c', l[1], l[2].toInt());
 	else if (cmd == "disconnect")
-		stop_client();
+		stop('c');
 	else if (cmd == "clear")
 		ui->textBrowser->clear();
 	else if (cmd == "ls")
@@ -311,25 +172,24 @@ void MainWindow::interpret_command(QString str)
 	}
 	else if (cmd == "set_keys")
 	{
-		my_kid = l[1].toInt();
-		my_pos = l[2].toInt();
+		my_key.pos = l[1].toInt();
 		{
-			QFile q1(l[3]), q2(l[4]);
+			QFile q1(l[2]), q2(l[3]);
 			q1.open(QIODevice::ReadOnly);
 			q2.open(QIODevice::ReadOnly);
 
 			if (! q1.isOpen() || ! q2.isOpen())
 				return printl("Key file not found", "red");
 
-			my_key.open();
-			my_key.write(q1.readAll());
-			he_key.open();
-			he_key.write(q2.readAll());
+			// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
+			// TODO this is retarded
+			my_key.file.open(); my_key.file.write(q1.readAll());
+			he_key.file.open(); he_key.file.write(q2.readAll());
 		}
 	}
 	else if (cmd == "get_keys")
 	{
-		printl("MyKid " +QString::number(my_kid) +" MyPos " +QString::number(my_pos) +" MyKey " +my_key.fileName() +" HeKey " +he_key.fileName(), "orange");
+		printl("MyKid " +QString::number(my_kid) +" MyPos " +QString::number(my_pos) +" MyKey " +my_key.file.fileName() +" HeKey " +he_key.file.fileName(), "orange");
 	}
 	else if (cmd == "get_pos")
 	{
@@ -337,49 +197,6 @@ void MainWindow::interpret_command(QString str)
 	}
 	else
 		printl("Unknown Command: " +cmd, "red");
-}
-
-void MainWindow::client_data_ready()
-{
-	if (! he_key.isOpen())
-	{
-		printl("Pls set keys with /set_keys", "red");
-		return;
-	}
-
-	QTcpSocket* connection = qobject_cast<QTcpSocket*>(sender());
-
-	QByteArray msg(connection->readAll());
-	// Decrypt
-	{
-		QProcess ecel;
-
-		ecel.start("./ecel --encrypt=2 --key=" +he_key.fileName() +" --strip-msg-head");
-		ecel.write(msg);
-		ecel.closeWriteChannel();
-
-		if (! ecel.waitForStarted(3000))
-		{
-			printl("Ecel could not be started\n" +ecel.errorString(), "red");
-			return;
-		}
-
-		if (! ecel.waitForFinished(3000))
-		{
-			ecel.terminate();
-			printl("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()) +"\n" + ecel.errorString(), "red");
-			return;
-		}
-		else
-			msg = ecel.readAll();
-	}
-
-	printl_he(QString::fromUtf8(msg));
-}
-
-void MainWindow::server_data_ready()
-{
-
 }
 
 void MainWindow::print(QString msg)
@@ -421,5 +238,6 @@ void MainWindow::printl_he(QString str)
 MainWindow::~MainWindow()
 {
 	delete ui;
-	delete client;
+	if (connection)
+		delete connection;
 }
