@@ -10,9 +10,11 @@ public:
 	struct Key
 	{
 		Key() = default;
+		Key(QString path, unsigned long long pos);
 		~Key() = default;
 
 		QTemporaryFile file;
+		unsigned long long kid;
 		unsigned long long pos;
 	};
 

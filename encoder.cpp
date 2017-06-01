@@ -4,19 +4,9 @@
 
 QByteArray Encoder::encode(const QByteArray& data, const Key& key)
 {
-	QProcess ecel_kid, ecel_make_msg, ecel_encrypt;
+	QProcess ecel_make_msg, ecel_encrypt;
 
-	ecel_kid.start("./ecel --get=key_kid --key=" +key.file.fileName());
-	if (! ecel_kid.waitForFinished(1000))
-	{
-		ecel_kid.terminate();
-		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()), "red");
-		return QByteArray();
-	}
-
-	QString kid(QString::fromUtf8(ecel_kid.readAll()));
-
-	ecel_make_msg.start("./ecel --create-msg --pos=" +QString::number(key.pos) +" --kid=" +kid);
+	ecel_make_msg.start("./ecel --create-msg --pos=" +QString::number(key.pos) +" --kid=" +QString::number(key.kid));
 	ecel_make_msg.write(data);
 	ecel_make_msg.closeWriteChannel();
 
@@ -63,4 +53,31 @@ QByteArray Encoder::decode(const QByteArray& data, const Key& key)
 	}
 
 	return ecel.readAll();
+}
+
+Encoder::Key::Key(QString path, unsigned long long pos)
+{
+	QFile tmp(path);
+	tmp.open(QIODevice::ReadOnly);
+
+	if (! tmp.isOpen())
+	{
+		qDebug() << "Key file not found";
+		return;
+	}
+
+	// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0000.key
+	this->file.open();
+	this->file.write(tmp.readAll());
+
+	QProcess ecel_kid;
+	ecel_kid.start("./ecel --get=key_kid --key=" +file.fileName());
+	if (! ecel_kid.waitForFinished(1000))
+	{
+		ecel_kid.terminate();
+		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()), "red");
+	}
+
+	this->kid = QString::fromUtf8(ecel_kid.readAll()).toLongLong();
+	this->pos = pos;
 }

@@ -21,9 +21,6 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	ui->setupUi(this);
 	ui->textBrowser->setStyleSheet("QTextBrowser { color: rgb(84, 165, 196); background: rgb(24, 24, 24); selection-background-color: rgb(25, 55, 84); }");
 	ui->textEdit   ->setStyleSheet("QTextEdit    { color: rgb(84, 165, 196); background: rgb(38, 38, 38); selection-background-color: rgb(25, 55, 84); }");
-	ui->textBrowser->setOpenLinks(false);
-	ui->textBrowser->setReadOnly(true);
-	ui->textBrowser->setUndoRedoEnabled(false);
 
 	new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_Q), this, SLOT(close()));
 	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_B), this), &QShortcut::activated, [=]()
@@ -34,12 +31,9 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 				this->window()->setWindowFlags(Qt::FramelessWindowHint);
 			this->window()->show();
 		});
-	connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]()
-		{ this->window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
-	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]()
-		{ this->window()->showMinimized(); });
-	connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated, [=]()
-		{ this->ui->textEdit->clear(); });
+	connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]() { this->window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
+	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]() { this->window()->showMinimized(); });
+	connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated, [=]() { this->ui->textEdit->clear(); });
 
 	qApp->installEventFilter(this);
 
@@ -48,9 +42,7 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 
 QString const me("THIS"), he("THEE"),
 			  me_clr(""), he_clr("LightGreen");
-int my_pos, my_kid;
-QFile tmp, tmp2;
-Encoder::Key my_key, he_key;
+Encoder::Key* my_key,* he_key;
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
@@ -88,6 +80,7 @@ void MainWindow::send(QString str)
 	}
 	else
 	{
+		// TODO check success
 		this->connection->send(str.toUtf8());
 		printl_me(str);
 	}
@@ -97,7 +90,7 @@ bool MainWindow::start(char which, QString add, int port)
 {
 	if (! connection)
 	{
-		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(my_key, he_key)) : dynamic_cast<IConnector*>(new Client(my_key, he_key));
+		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(*my_key, *he_key)) : dynamic_cast<IConnector*>(new Client(*my_key, *he_key));
 		connect(connection, SIGNAL(on_data_out(QString,QString)), this, SLOT(printl(QString,QString)));
 	}
 
@@ -148,9 +141,7 @@ void MainWindow::interpret_command(QString str)
 
 	printl("EXEC '" +str +"'", "orange");
 	if (cmd == "version" || cmd == "ver")
-	{
 		printl("Build " +version);
-	}
 	else if (cmd == "server")
 	{
 		if (l[1] == "start")
@@ -174,28 +165,16 @@ void MainWindow::interpret_command(QString str)
 	}
 	else if (cmd == "set_keys")
 	{
-		my_key.pos = l[1].toInt();
-		{
-			QFile q1(l[2]), q2(l[3]);
-			q1.open(QIODevice::ReadOnly);
-			q2.open(QIODevice::ReadOnly);
-
-			if (! q1.isOpen() || ! q2.isOpen())
-				return printl("Key file not found", "red");
-
-			// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0000.key
-			// TODO this is retarded
-			my_key.file.open(); my_key.file.write(q1.readAll());
-			he_key.file.open(); he_key.file.write(q2.readAll());
-		}
+		my_key = new Encoder::Key(l[2], l[1].toLongLong());
+		he_key = new Encoder::Key(l[3], 0);
 	}
 	else if (cmd == "get_keys")
 	{
-		printl("MyKid " +QString::number(my_kid) +" MyPos " +QString::number(my_pos) +" MyKey " +my_key.file.fileName() +" HeKey " +he_key.file.fileName(), "orange");
+		printl("MyKid " +QString::number(my_key->kid) +" MyPos " +QString::number(my_key->pos) +" MyKey " +my_key->file.fileName() +" HeKey " +he_key->file.fileName(), "orange");
 	}
 	else if (cmd == "get_pos")
 	{
-		printl("MyPos " +QString::number(my_pos));
+		printl("MyPos " +QString::number(my_key->pos));
 	}
 	else
 		printl("Unknown Command: " +cmd, "red");
@@ -242,4 +221,8 @@ MainWindow::~MainWindow()
 	delete ui;
 	if (connection)
 		delete connection;
+	if (my_key)
+		delete my_key;
+	if (he_key)
+		delete he_key;
 }
