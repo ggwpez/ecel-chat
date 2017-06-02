@@ -53,5 +53,6 @@ QByteArray Encoder::decode(const QByteArray& data, EcelKey& key)
 		return QByteArray();
 	}
 
-	return ecel.readAll();
+	QByteArray ret(ecel.readAll());
+	return ret;
 }

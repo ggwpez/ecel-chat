@@ -14,7 +14,7 @@
 class Server : public IConnector
 {
 public:
-	Server(Session const& session);
+	Server(SessionManager const& session);
 
 	bool start(QString add, int port) override;
 	bool stop() override;

@@ -4,7 +4,7 @@
 
 #include <QScopedPointer>
 
-Server::Server(Session const& session)
+Server::Server(const SessionManager& session)
 	: IConnector(session),
 	  socket(std::make_unique<QTcpServer>()),
 	  clients()
@@ -57,7 +57,7 @@ bool Server::stop()
 
 bool Server::send(QString data)
 {
-	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.my_key));
+	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.get_active_session()->my_key));
 
 	for (auto const& client : clients)
 		client->write(encoded), client->flush();
@@ -68,7 +68,8 @@ bool Server::send(QString data)
 void Server::on_data_ready()
 {
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-	QByteArray msg(Encoder::decode(client->readAll(), *session.he_key));
+	EcelKey& key = *session.get_active_session()->he_key;
+	QByteArray msg(Encoder::decode(client->readAll(), key));
 
 	emit on_thee_msg(QString::fromUtf8(msg));
 }

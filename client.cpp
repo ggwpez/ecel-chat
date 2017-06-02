@@ -1,7 +1,7 @@
 #include "client.hpp"
 #include <QHostAddress>
 
-Client::Client(Session const& session)
+Client::Client(const SessionManager& session)
 	: IConnector(session),
 	  socket(new QTcpSocket())
 
@@ -63,7 +63,7 @@ bool Client::send(QString data)
 	if (! data.size())
 		return true;
 
-	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.my_key));
+	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.get_active_session()->my_key));
 
 	bool ret(socket->write(encoded) == data.size());
 	socket->flush();
@@ -74,7 +74,7 @@ bool Client::send(QString data)
 void Client::on_data_ready()
 {
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-	QByteArray msg(Encoder::decode(client->readAll(), *session.he_key));
+	QByteArray msg(Encoder::decode(client->readAll(), *session.get_active_session()->he_key));
 
 	emit on_thee_msg(QString::fromUtf8(msg));
 }

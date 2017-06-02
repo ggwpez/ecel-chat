@@ -38,7 +38,7 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	qApp->installEventFilter(this);
 
 	interpret_commands(cmd);
-	sessions.load_sessions("sessions.bin");
+	connect(&sessions, &SessionManager::print, [=](QString str) { this->printl("SessionMng: " +str, "orange"); });
 }
 
 QString const me("THIS"), he("THEE"),
@@ -91,14 +91,8 @@ bool MainWindow::start(char which, QString add, int port)
 {
 	if (! connection)
 	{
-		if (! sessions.exists_session(active_session))
-		{
-			printl("Session '" +active_session +"' not found, use /set_session <name>", "red");
-			return false;
-		}
-
-		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(sessions.get_session(active_session)))
-									: dynamic_cast<IConnector*>(new Client(sessions.get_session(active_session)));
+		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(sessions))
+									: dynamic_cast<IConnector*>(new Client(sessions));
 
 		connect(connection, &IConnector::on_error,		  [=](QString str) { this->printl(str, "red"); });
 		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->printl_he(str); });
@@ -136,7 +130,7 @@ void MainWindow::interpret_input(QString str)
 
 void MainWindow::interpret_commands(QString str)
 {
-	QStringList l = str.split(QRegExp("\\s*;s*"), QString::SkipEmptyParts);
+	QStringList l = str.split(QRegExp("(\\;|\\n)"), QString::SkipEmptyParts);
 
 	for (QString str : l)
 		interpret_command(str.remove(0,1).trimmed());
@@ -144,14 +138,25 @@ void MainWindow::interpret_commands(QString str)
 
 void MainWindow::interpret_command(QString str)
 {
-	QStringList l = str.split(QRegExp("\\s*,s*"), QString::SkipEmptyParts);
+	QStringList l = str.split(QRegExp("\\,"));
 	for (QString& str : l)
 		str = str.trimmed();
 
 	QString cmd = l[0].toLower();
 
 	printl("EXEC '" +str +"'", "orange");
-	if (cmd == "version" || cmd == "ver")
+	if (cmd == "load")
+	{
+		QFile f(l[1]);
+		if (f.exists())
+		{
+			f.open(QIODevice::ReadOnly);
+			interpret_commands(QString::fromUtf8(f.readAll()));
+		}
+		else
+			printl("File '" +l[1] +"' not found", "red");
+	}
+	else if (cmd == "version" || cmd == "ver")
 		printl("Build " +version);
 	else if (cmd == "server")
 	{
@@ -170,16 +175,11 @@ void MainWindow::interpret_command(QString str)
 		interpret_command("server, start, 127.0.0.1, 8080");
 	else if (cmd == "lc")
 		interpret_command("connect, 127.0.0.1, 8080");
-	else if (cmd == "load_sessions")
-		sessions.load_sessions(l[1]);
-	else if (cmd == "set_session")
-		active_session = l[1];
 	else if (cmd == "get_sessions")
 		printl(sessions.to_str(), "orange");
 	else if (cmd == "make_session")
 	{
 		// /make_session,steffen,138000,0,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
-		//  /make_session,oliver,0,0,/media/vados/KEY-STICK-000/0001.key,/media/vados/KEY-STICK-000/0000.key
 		// <name> <my_pos> <he_pos> <my_key> <he_key>
 		sessions.add_session(l[1], std::make_shared<EcelKey>(l[4], l[2].toLongLong()), std::make_shared<EcelKey>(l[5], l[3].toLongLong()));	// TODO it are len_t not long long's
 	}
@@ -188,6 +188,12 @@ void MainWindow::interpret_command(QString str)
 		// <path>
 		sessions.save_to_file(l[1]);
 	}
+	else if (cmd == "print")
+		printl(l[1]);
+	else if (cmd == "set_default_session")
+		sessions.set_default_session(l[1]);
+	else if (cmd == "set_active_session")
+		sessions.set_active_session(l[1]);
 	else if (cmd == "get_keys")
 		printl("MyKid " +QString::number(my_key->kid) +" MyPos " +QString::number(my_key->pos) +" MyKey " +my_key->file.fileName() +" HeKey " +he_key->file.fileName(), "orange");
 	else if (cmd == "get_pos")
@@ -204,9 +210,9 @@ void MainWindow::printl(QString msg, QString clr)
 	bool scrolled_to_end = (bar->value() == bar->maximum());
 
 	if (clr.length())
-		ui->textBrowser->insertHtml(time +" <font color=\"" +clr +"\">" +msg +"</font><br>");
+		ui->textBrowser->insertHtml("<font color=white>" +time +"</font> <font color=\"" +clr +"\">" +msg +"</font><br>");
 	else
-		ui->textBrowser->insertHtml(time + " " +msg +"<br>");
+		ui->textBrowser->insertHtml("<font color=white>" +time + "</font> " +msg +"<br>");
 
 	// Scroll
 	{
@@ -229,7 +235,7 @@ void MainWindow::printl_he(QString str)
 
 MainWindow::~MainWindow()
 {
-	sessions.save_to_file("sessions.bin");
+	sessions.save_to_file("sessions.txt");
 	delete ui;
 
 	if (connection)

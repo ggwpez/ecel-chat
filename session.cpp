@@ -1,5 +1,5 @@
 #include "session.hpp"
-#include <QDataStream>
+#include <QTextStream>
 
 Session::Session(QObject* parent)
 	: QObject(parent)
@@ -13,19 +13,13 @@ Session::Session(const QString& name, std::shared_ptr<EcelKey> my_key, std::shar
 
 }
 
-QString Session::to_str()
+QString Session::to_str() const
 {
 	return "Session(" +name +"," +my_key->to_str() +"," +he_key->to_str() +")";
 }
 
-QDataStream& operator<< (QDataStream& ds, Session const& obj)
+QTextStream& operator<< (QTextStream& ds, Session const& obj)
 {
-	ds << obj.name << *obj.my_key << *obj.he_key;
-	return ds;
-}
-
-QDataStream& operator>> (QDataStream& ds, Session& obj)
-{
-	ds >> obj.name >> *(obj.my_key = std::make_unique<EcelKey>()) >> *(obj.he_key = std::make_unique<EcelKey>());
+	ds << "/make_session," << obj.name << "," << obj.my_key->pos << "," << obj.he_key->pos << "," << obj.my_key->path << "," << obj.he_key->path;
 	return ds;
 }

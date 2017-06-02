@@ -2,7 +2,7 @@
 
 #include <QFile>
 #include <QStringBuilder>
-#include <QDataStream>
+#include <QTextStream>
 #include <QDebug>
 
 bool SessionManager::save_to_file(const QString& cfg_path)
@@ -10,32 +10,17 @@ bool SessionManager::save_to_file(const QString& cfg_path)
 	QFile cfg(cfg_path);
 	cfg.open(QIODevice::WriteOnly);
 
-	QDataStream out(&cfg);
+	QTextStream out(&cfg);
+
 	for (auto const& session : sessions)
-		out << *session;
+		out << *session << "\n";
+	if (this->get_default_session())
+		out << "/set_default_session," << this->get_default_session()->name << "\n";
+	if (this->get_active_session())
+		out << "/set_active_session," << this->get_default_session()->name << "\n";
 
-	return true;
-}
-
-bool SessionManager::load_sessions(const QString& cfg_path)
-{
-	sessions.clear();
-	QFile cfg(cfg_path);
-	if (! cfg.exists())
-	{
-		QMessageLogger().critical() << "Session file" << cfg_path << "not found";
-		return false;
-	}
-
-	cfg.open(QIODevice::ReadOnly);
-
-	QDataStream in(&cfg);
-	while (! in.atEnd())
-	{
-		sessions.push_back(std::make_unique<Session>());
-		in >> *sessions.back();
-	}
-
+	out << "/print,Sessions loaded" << "\n";
+	emit print("Saved " +QString::number(sessions.size()) +" session(s) to '" +cfg_path +"'");
 	return true;
 }
 
@@ -48,6 +33,33 @@ bool SessionManager::add_session(QString const& name, std::shared_ptr<EcelKey> m
 	return true;
 }
 
+bool SessionManager::set_active_session(const QString& name)
+{
+	if (! exists_session(name))
+	{
+		emit print("Session '" +name +"' not found");
+		return false;
+	}
+
+	this->active_session = get_session(name);
+	return true;
+}
+
+std::shared_ptr<Session> SessionManager::get_active_session() const
+{
+	return this->active_session;
+}
+
+bool SessionManager::set_default_session(const QString& name)
+{
+	return (this->default_session = get_session(name)).get();
+}
+
+std::shared_ptr<Session> SessionManager::get_default_session() const
+{
+	return this->default_session;
+}
+
 bool SessionManager::exists_session(QString const& name)
 {
 	for (size_t i = 0; i < sessions.size(); ++i)
@@ -57,16 +69,16 @@ bool SessionManager::exists_session(QString const& name)
 	return false;
 }
 
-Session const& SessionManager::get_session(QString const& name)
+std::shared_ptr<Session> SessionManager::get_session(QString const& name) const
 {
 	for (size_t i = 0; i < sessions.size(); ++i)
 		if (sessions[i]->name == name)
-			return *sessions[i];
+			return sessions[i];
 
 	throw QString("Session not found");
 }
 
-QString SessionManager::to_str()
+QString SessionManager::to_str() const
 {
 	QString str;
 

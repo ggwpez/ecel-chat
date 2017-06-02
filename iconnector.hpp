@@ -3,6 +3,7 @@
 
 #include "encoder.hpp"
 #include "session.hpp"
+#include "session_manager.hpp"
 
 #include <QByteArray>
 #include <QString>
@@ -13,7 +14,7 @@ class IConnector : public QObject
 	Q_OBJECT
 
 public:
-	IConnector(Session const& session)
+	IConnector(SessionManager const& session)
 		: session(session)
 	{  }
 
@@ -35,7 +36,7 @@ protected slots:
 	virtual void on_disconnected() = 0;
 
 protected:
-	Session const& session;
+	SessionManager const& session;
 };
 
 inline IConnector::~IConnector() { }

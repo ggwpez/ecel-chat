@@ -25,22 +25,4 @@ public:
 	len_t pos;
 };
 
-inline QDataStream& operator<< (QDataStream& ds, EcelKey const& obj)
-{
-	ds << obj.path << quint64(obj.pos);
-
-	return ds;
-}
-
-inline QDataStream& operator>> (QDataStream& ds, EcelKey& obj)
-{
-	quint64 pos;
-
-	ds >> obj.path >> pos;
-	obj.load_file();
-	obj.pos = pos;
-
-	return ds;
-}
-
 #endif // ECEL_KEY_HPP

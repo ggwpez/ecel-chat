@@ -11,7 +11,7 @@
 class Client : public IConnector
 {
 public:
-	Client(const Session& session);
+	Client(SessionManager const& session);
 	~Client();
 
 	virtual bool start(QString add, int port) override;
