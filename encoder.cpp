@@ -2,7 +2,7 @@
 #include <QProcess>
 #include <QDebug>
 
-QByteArray Encoder::encode(const QByteArray& data, const EcelKey& key)
+QByteArray Encoder::encode(const QByteArray& data, EcelKey& key)
 {
 	QProcess ecel_make_msg, ecel_encrypt;
 
@@ -28,10 +28,11 @@ QByteArray Encoder::encode(const QByteArray& data, const EcelKey& key)
 		return QByteArray();
 	}
 
+	key.pos += data.size();				// TODO this only works with 1:1 encryption size
 	return ecel_encrypt.readAll();
 }
 
-QByteArray Encoder::decode(const QByteArray& data, const EcelKey& key)
+QByteArray Encoder::decode(const QByteArray& data, EcelKey& key)
 {
 	QProcess ecel;
 

@@ -4,8 +4,13 @@
 #include <QDebug>
 #include <QProcess>
 
-EcelKey::EcelKey(QString path, len_t pos)
-	: path(path)
+EcelKey::EcelKey(const QString& path, len_t pos)
+	: path(path), pos(pos)
+{
+	load_file();
+}
+
+void EcelKey::load_file()
 {
 	QFile tmp(path);
 	tmp.open(QIODevice::ReadOnly);
@@ -29,5 +34,9 @@ EcelKey::EcelKey(QString path, len_t pos)
 	}
 
 	this->kid = QString::fromUtf8(ecel_kid.readAll()).toLongLong();
-	this->pos = pos;
+}
+
+QString EcelKey::to_str()
+{
+	return "EcelKey(" +QString::number(kid) +"," +path +"," +QString::number(pos) +"," +file.fileName() +")";
 }

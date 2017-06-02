@@ -10,8 +10,8 @@ class Encoder
 public:
 	Encoder() = delete;
 
-	static QByteArray encode(QByteArray const& data, const EcelKey& key);
-	static QByteArray decode(QByteArray const& data, const EcelKey& key);
+	static QByteArray encode(QByteArray const& data, EcelKey& key);
+	static QByteArray decode(QByteArray const& data, EcelKey& key);
 };
 
 #endif // ENCODER_HPP

@@ -14,9 +14,11 @@ class Session : public QObject
 public:
 	Session(Session const&) = delete;
 	explicit Session(QObject *parent = 0);
+	Session(QString const& name, std::shared_ptr<EcelKey> my_key, std::shared_ptr<EcelKey> he_key);
+	QString to_str();
 
 	QString name;
-	std::unique_ptr<EcelKey> my_key, he_key;
+	std::shared_ptr<EcelKey> my_key, he_key;
 };
 
 QDataStream& operator<< (QDataStream& ds, Session const& obj);

@@ -14,7 +14,10 @@ class EcelKey : public QObject
 
 public:
 	EcelKey() {}
-	EcelKey(QString path, len_t pos);
+	EcelKey(QString const& path, len_t pos);
+
+	void load_file();
+	QString to_str();
 
 	QString path;
 	QTemporaryFile file;
@@ -24,17 +27,17 @@ public:
 
 inline QDataStream& operator<< (QDataStream& ds, EcelKey const& obj)
 {
-	ds << obj.path << quint64(obj.kid) << quint64(obj.pos);
+	ds << obj.path << quint64(obj.pos);
 
 	return ds;
 }
 
 inline QDataStream& operator>> (QDataStream& ds, EcelKey& obj)
 {
-	quint64 kid, pos;
+	quint64 pos;
 
-	ds >> obj.path >> kid >> pos;
-	obj.kid = kid;
+	ds >> obj.path >> pos;
+	obj.load_file();
 	obj.pos = pos;
 
 	return ds;

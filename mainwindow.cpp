@@ -16,7 +16,7 @@
 
 MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	QMainWindow(parent),
-	ui(new Ui::MainWindow)
+	ui(new Ui::MainWindow), sessions()
 {
 	ui->setupUi(this);
 	ui->textBrowser->setStyleSheet("QTextBrowser { color: rgb(84, 165, 196); background: rgb(24, 24, 24); selection-background-color: rgb(25, 55, 84); }");
@@ -38,6 +38,7 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	qApp->installEventFilter(this);
 
 	interpret_commands(cmd);
+	sessions.load_sessions("sessions.bin");
 }
 
 QString const me("THIS"), he("THEE"),
@@ -90,6 +91,12 @@ bool MainWindow::start(char which, QString add, int port)
 {
 	if (! connection)
 	{
+		if (! sessions.exists_session(active_session))
+		{
+			printl("Session '" +active_session +"' not found, use /set_session <name>", "red");
+			return false;
+		}
+
 		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(sessions.get_session(active_session)))
 									: dynamic_cast<IConnector*>(new Client(sessions.get_session(active_session)));
 
@@ -167,6 +174,20 @@ void MainWindow::interpret_command(QString str)
 		sessions.load_sessions(l[1]);
 	else if (cmd == "set_session")
 		active_session = l[1];
+	else if (cmd == "get_sessions")
+		printl(sessions.to_str(), "orange");
+	else if (cmd == "make_session")
+	{
+		// /make_session,steffen,138000,0,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
+		//  /make_session,oliver,0,0,/media/vados/KEY-STICK-000/0001.key,/media/vados/KEY-STICK-000/0000.key
+		// <name> <my_pos> <he_pos> <my_key> <he_key>
+		sessions.add_session(l[1], std::make_shared<EcelKey>(l[4], l[2].toLongLong()), std::make_shared<EcelKey>(l[5], l[3].toLongLong()));	// TODO it are len_t not long long's
+	}
+	else if (cmd == "save_sessions")
+	{
+		// <path>
+		sessions.save_to_file(l[1]);
+	}
 	else if (cmd == "get_keys")
 		printl("MyKid " +QString::number(my_key->kid) +" MyPos " +QString::number(my_key->pos) +" MyKey " +my_key->file.fileName() +" HeKey " +he_key->file.fileName(), "orange");
 	else if (cmd == "get_pos")
@@ -208,6 +229,7 @@ void MainWindow::printl_he(QString str)
 
 MainWindow::~MainWindow()
 {
+	sessions.save_to_file("sessions.bin");
 	delete ui;
 
 	if (connection)
