@@ -1,3 +1,0 @@
-/load,sample.sessions.txt
-/server,start,127.0.0.1,8080
-/print,Config loaded

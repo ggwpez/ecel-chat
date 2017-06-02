@@ -36,8 +36,8 @@ protected:
 	void interpret_commands(QString str);
 	void interpret_command(QString str);
 	void send(QString str);
-	bool start(char which, QString add, int port);
-	bool stop(char which);
+	void start(char which, QString add, int port);
+	void stop(char which);
 
 	void printl(QString msg, QString clr = "");
 	void printl_me(QString str);

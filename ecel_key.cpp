@@ -3,6 +3,8 @@
 #include <QFile>
 #include <QDebug>
 #include <QProcess>
+#include <exception>
+#include <qexception.h>
 
 EcelKey::EcelKey(const QString& path, len_t pos)
 	: path(path), pos(pos)
@@ -16,10 +18,7 @@ void EcelKey::load_file()
 	tmp.open(QIODevice::ReadOnly);
 
 	if (! tmp.isOpen())
-	{
-		qDebug() << "Key file not found";
-		return;
-	}
+		throw std::runtime_error("File '" +path.toStdString() +"' not found");
 
 	// /set_keys,137000,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0000.key
 	this->file.open();
@@ -30,7 +29,7 @@ void EcelKey::load_file()
 	if (! ecel_kid.waitForFinished(1000))
 	{
 		ecel_kid.terminate();
-		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()), "red");
+		throw std::runtime_error("Ecel returned not 0\n" +QString::fromUtf8(ecel_kid.readAllStandardError()).toStdString());
 	}
 
 	this->kid = QString::fromUtf8(ecel_kid.readAll()).toLongLong();

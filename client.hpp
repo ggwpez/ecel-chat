@@ -14,9 +14,9 @@ public:
 	Client(SessionManager const& session);
 	~Client();
 
-	virtual bool start(QString add, int port) override;
-	virtual bool stop() override;
-	virtual bool send(QString data) override;
+	virtual void start(QString add, int port) override;
+	virtual void stop() override;
+	virtual void send(QString data) override;
 
 protected slots:
 	void on_data_ready() override;

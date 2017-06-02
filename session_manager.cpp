@@ -36,10 +36,7 @@ bool SessionManager::add_session(QString const& name, std::shared_ptr<EcelKey> m
 bool SessionManager::set_active_session(const QString& name)
 {
 	if (! exists_session(name))
-	{
-		emit print("Session '" +name +"' not found");
-		return false;
-	}
+		throw std::runtime_error("Session '" +name.toStdString() +"' not found");
 
 	this->active_session = get_session(name);
 	return true;
@@ -50,9 +47,10 @@ std::shared_ptr<Session> SessionManager::get_active_session() const
 	return this->active_session;
 }
 
-bool SessionManager::set_default_session(const QString& name)
+void SessionManager::set_default_session(const QString& name)
 {
-	return (this->default_session = get_session(name)).get();
+	if (!(this->default_session = get_session(name)).get())
+		throw std::runtime_error("Session '" +name.toStdString() +"' not found");
 }
 
 std::shared_ptr<Session> SessionManager::get_default_session() const
@@ -75,7 +73,7 @@ std::shared_ptr<Session> SessionManager::get_session(QString const& name) const
 		if (sessions[i]->name == name)
 			return sessions[i];
 
-	throw QString("Session not found");
+	throw std::runtime_error("Session '" +name.toStdString() +"' not found");
 }
 
 QString SessionManager::to_str() const

@@ -11,38 +11,29 @@ Server::Server(const SessionManager& session)
 {
 
 }
-bool Server::start(QString add, int port)
+
+void Server::start(QString add, int port)
 {
 	QString new_position("IP:" +QString::number(port));
 
 	if (socket->isListening())
-	{
-		emit on_error("Server is already started");
-		return false;
-	}
+		throw std::runtime_error("Server is already started");
 
 	connect(socket.get(), SIGNAL(newConnection()), this, SLOT(on_connected()));
 	if (! socket->listen(QHostAddress::Any, port))
-	{
-		emit on_error("Server cant listen on: " +new_position);
-		return false;
-	}
+		throw std::runtime_error("Server cant listen on: " +new_position.toStdString());
 	else
 	{
 		this->address = add; this->port = port;
 
 		emit on_internal_msg("Server listening on: " +new_position);
-		return true;
 	}
 }
 
-bool Server::stop()
+void Server::stop()
 {
 	if (! socket->isListening())
-	{
-		emit on_error("Server is already not stopped");
-		return false;
-	}
+		throw std::runtime_error("Server is already not stopped");
 	else
 	{
 		for (auto const& client : clients)
@@ -50,19 +41,16 @@ bool Server::stop()
 		clients.clear();
 
 		this->address = ""; this->port = 0;
-		emit on_error("Server stopped");
-		return true;
+		emit on_internal_msg("Server stopped");
 	}
 }
 
-bool Server::send(QString data)
+void Server::send(QString data)
 {
 	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.get_active_session()->my_key));
 
 	for (auto const& client : clients)
 		client->write(encoded), client->flush();
-
-	return true;
 }
 
 void Server::on_data_ready()
@@ -87,7 +75,7 @@ void Server::on_connected()
 		emit on_internal_msg("Client connected");
 	}
 	else
-		emit on_error("Weird error");
+		throw std::runtime_error("Weird error");
 }
 
 void Server::on_disconnected()
@@ -100,5 +88,5 @@ void Server::on_disconnected()
 			clients.erase(clients.begin() +i);
 	}
 
-	emit on_error("Client disconnected");
+	emit on_internal_msg("Client disconnected");
 }

@@ -13,8 +13,7 @@ QByteArray Encoder::encode(const QByteArray& data, EcelKey& key)
 	if (! ecel_make_msg.waitForFinished(1000))
 	{
 		ecel_make_msg.terminate();
-		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
-		return QByteArray();
+		throw std::runtime_error("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()).toStdString());
 	}
 
 	ecel_encrypt.start("./ecel --encrypt=2 --key=" +key.file.fileName());
@@ -24,8 +23,7 @@ QByteArray Encoder::encode(const QByteArray& data, EcelKey& key)
 	if (! ecel_encrypt.waitForFinished(1000))
 	{
 		ecel_encrypt.terminate();
-		qDebug () << ("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()), "red");
-		return QByteArray();
+		throw std::runtime_error("Ecel returned not 0\n" +QString::fromUtf8(ecel_make_msg.readAllStandardError()).toStdString());
 	}
 
 	key.pos += data.size();				// TODO this only works with 1:1 encryption size
@@ -41,16 +39,12 @@ QByteArray Encoder::decode(const QByteArray& data, EcelKey& key)
 	ecel.closeWriteChannel();
 
 	if (! ecel.waitForStarted(3000))
-	{
-		qDebug () << ("Ecel could not be started\n" +ecel.errorString(), "red");
-		return QByteArray();
-	}
+		throw std::runtime_error("Ecel could not be started\n" +ecel.errorString().toStdString());
 
 	if (! ecel.waitForFinished(3000))
 	{
 		ecel.terminate();
-		qDebug() << ("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()) +"\n" + ecel.errorString(), "red");
-		return QByteArray();
+		throw std::runtime_error("Ecel returned not 0\n" +QString::fromUtf8(ecel.readAllStandardError()).toStdString() +"\n" + ecel.errorString().toStdString());
 	}
 
 	QByteArray ret(ecel.readAll());

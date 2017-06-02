@@ -18,9 +18,9 @@ public:
 		: session(session)
 	{  }
 
-	virtual bool start(QString add, int port) = 0;
-	virtual bool stop() = 0;
-	virtual bool send(QString data) = 0;
+	virtual void start(QString add, int port) = 0;
+	virtual void stop() = 0;
+	virtual void send(QString data) = 0;
 	virtual ~IConnector() = 0;
 
 signals:
@@ -28,7 +28,6 @@ signals:
 	void on_thee_msg(QString str);
 	// Messages, like 'server listening now'
 	void on_internal_msg(QString);
-	void on_error(QString str);
 
 protected slots:
 	virtual void on_data_ready() = 0;

@@ -19,6 +19,8 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	ui(new Ui::MainWindow), sessions()
 {
 	ui->setupUi(this);
+	qApp->installEventFilter(this);
+
 	ui->textBrowser->setStyleSheet("QTextBrowser { color: rgb(84, 165, 196); background: rgb(24, 24, 24); selection-background-color: rgb(25, 55, 84); }");
 	ui->textEdit   ->setStyleSheet("QTextEdit    { color: rgb(84, 165, 196); background: rgb(38, 38, 38); selection-background-color: rgb(25, 55, 84); }");
 
@@ -34,11 +36,17 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]() { this->window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
 	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]() { this->window()->showMinimized(); });
 	connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated, [=]() { this->ui->textEdit->clear(); });
-
-	qApp->installEventFilter(this);
-
-	interpret_commands(cmd);
 	connect(&sessions, &SessionManager::print, [=](QString str) { this->printl("SessionMng: " +str, "orange"); });
+
+	QFile tmp("ecel");
+	if (! tmp.exists())
+	{
+		printl("Could not find ecel. Pls copy it to:", "red");
+		interpret_commands("/system,pwd");
+	}
+
+	interpret_commands("/load,config.txt");
+	interpret_commands(cmd);
 }
 
 QString const me("THIS"), he("THEE"),
@@ -87,36 +95,31 @@ void MainWindow::send(QString str)
 	}
 }
 
-bool MainWindow::start(char which, QString add, int port)
+void MainWindow::start(char which, QString add, int port)
 {
 	if (! connection)
 	{
 		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(sessions))
 									: dynamic_cast<IConnector*>(new Client(sessions));
 
-		connect(connection, &IConnector::on_error,		  [=](QString str) { this->printl(str, "red"); });
 		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->printl_he(str); });
 		connect(connection, &IConnector::on_internal_msg, [=](QString str) { this->printl(str, "orange"); });
 	}
 
-	return connection && connection->start(add, port);
+	connection->start(add, port);
 }
 
-bool MainWindow::stop(char which)
+void MainWindow::stop(char which)
 {
 	(void)which;
 
 	if (! connection)
-	{
-		printl("Nothing to close", "red");
-		return false;
-	}
+		throw std::runtime_error("Nothing to close");
 	else
 	{
-		bool ret(connection->stop());
-		delete connection;
+		connection->deleteLater();
+		connection->stop();
 		connection = nullptr;
-		return ret;
 	}
 }
 
@@ -133,7 +136,12 @@ void MainWindow::interpret_commands(QString str)
 	QStringList l = str.split(QRegExp("(\\;|\\n)"), QString::SkipEmptyParts);
 
 	for (QString str : l)
-		interpret_command(str.remove(0,1).trimmed());
+	{
+		try
+		{ interpret_command(str.remove(0,1).trimmed()); }
+		catch (std::exception const& e)
+		{ printl("Exception: " +QString(e.what()), "red"); }
+	}
 }
 
 void MainWindow::interpret_command(QString str)
@@ -171,6 +179,22 @@ void MainWindow::interpret_command(QString str)
 		stop('c');
 	else if (cmd == "clear")
 		ui->textBrowser->clear();
+	else if (cmd == "system")
+	{
+		QProcess p;
+		l.removeFirst();
+		cmd = l[0];
+		l.removeFirst();
+		p.start(cmd, l);
+
+		if (! p.waitForFinished(3000))
+			printl("Command failed", "red");
+		else
+		{
+			QString out(QString::fromUtf8(p.readAll()));
+			printl(out, "orange");
+		}
+	}
 	else if (cmd == "ls")
 		interpret_command("server, start, 127.0.0.1, 8080");
 	else if (cmd == "lc")
@@ -181,7 +205,10 @@ void MainWindow::interpret_command(QString str)
 	{
 		// /make_session,steffen,138000,0,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
 		// <name> <my_pos> <he_pos> <my_key> <he_key>
-		sessions.add_session(l[1], std::make_shared<EcelKey>(l[4], l[2].toLongLong()), std::make_shared<EcelKey>(l[5], l[3].toLongLong()));	// TODO it are len_t not long long's
+		auto key1(std::make_shared<EcelKey>(l[4], l[2].toLongLong())),	// temps for strict evaluation order
+			 key2(std::make_shared<EcelKey>(l[5], l[3].toLongLong()));
+
+		sessions.add_session(l[1], key1, key1);	// TODO it are len_t not long long's
 	}
 	else if (cmd == "save_sessions")
 	{

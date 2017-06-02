@@ -19,7 +19,7 @@ public:
 	bool set_active_session(QString const& name);
 	std::shared_ptr<Session> get_active_session() const;
 
-	bool set_default_session(QString const& name);
+	void set_default_session(QString const& name);
 	std::shared_ptr<Session> get_default_session() const;
 
 	bool exists_session(QString const& name);

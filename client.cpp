@@ -17,31 +17,24 @@ Client::~Client()
 		delete socket;
 }
 
-bool Client::start(QString add, int port)
+void Client::start(QString add, int port)
 {
 	if (socket->isOpen())
-	{
-		emit on_error("Client is already started");
-		return false;
-	}
+		throw std::runtime_error("Client is already started");
 
 	socket->connectToHost(QHostAddress(add), port, QIODevice::ReadWrite);
 
 	if (socket->waitForConnected(7500))
 	{
-		this->address = add; this->port = port;
-
+		this->address = add;
+		this->port = port;
 		emit on_internal_msg("Connected to server");
-		return true;
 	}
 	else
-	{
-		emit on_error("Could not connect to server");
-		return false;
-	}
+		throw std::runtime_error("Could not connect to server");
 }
 
-bool Client::stop()
+void Client::stop()
 {
 	if (socket->isOpen())
 	{
@@ -49,26 +42,21 @@ bool Client::stop()
 		socket->close();
 
 		this->address = ""; this->port = 0;
-		return true;
 	}
 	else
-	{
-		emit on_error("Client already stopped");
-		return false;
-	}
+		throw std::runtime_error("Client already stopped");
 }
 
-bool Client::send(QString data)
+void Client::send(QString data)
 {
 	if (! data.size())
-		return true;
+		return;
 
 	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.get_active_session()->my_key));
 
-	bool ret(socket->write(encoded) == data.size());
+	if (socket->write(encoded) != data.size())
+		throw std::runtime_error("Send to socket failed");
 	socket->flush();
-
-	return ret;
 }
 
 void Client::on_data_ready()

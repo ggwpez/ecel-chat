@@ -16,9 +16,9 @@ class Server : public IConnector
 public:
 	Server(SessionManager const& session);
 
-	bool start(QString add, int port) override;
-	bool stop() override;
-	bool send(QString data) override;
+	void start(QString add, int port) override;
+	void stop() override;
+	void send(QString data) override;
 
 public slots:
 	void on_data_ready() override;
