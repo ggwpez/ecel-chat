@@ -5,6 +5,7 @@
 
 #include "client.hpp"
 #include "server.hpp"
+#include "session_manager.hpp"
 
 namespace Ui
 {
@@ -24,6 +25,8 @@ private:
 
 	bool bar_enabled = true;
 	IConnector* connection = nullptr;
+	SessionManager sessions;
+	QString active_session;
 
 protected:
 	void resizeEvent(QResizeEvent* e);
@@ -36,12 +39,9 @@ protected:
 	bool start(char which, QString add, int port);
 	bool stop(char which);
 
-	void print(QString msg);
+	void printl(QString msg, QString clr = "");
 	void printl_me(QString str);
 	void printl_he(QString str);
-
-public slots:
-	void printl(QString msg, QString clr = "");
 };
 
 #endif // MAINWINDOW_H

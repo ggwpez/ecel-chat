@@ -2,6 +2,7 @@
 #define ICONNECTOR_HPP
 
 #include "encoder.hpp"
+#include "session.hpp"
 
 #include <QByteArray>
 #include <QString>
@@ -12,13 +13,13 @@ class IConnector : public QObject
 	Q_OBJECT
 
 public:
-	IConnector(EcelKey const& my_key, EcelKey const& he_key)
-		: my_key(my_key), he_key(he_key)
+	IConnector(Session const& session)
+		: session(session)
 	{  }
 
 	virtual bool start(QString add, int port) = 0;
 	virtual bool stop() = 0;
-	virtual bool send(QByteArray data) = 0;
+	virtual bool send(QString data) = 0;
 	virtual ~IConnector() = 0;
 
 signals:
@@ -34,8 +35,7 @@ protected slots:
 	virtual void on_disconnected() = 0;
 
 protected:
-	EcelKey const& my_key;
-	EcelKey const& he_key;
+	Session const& session;
 };
 
 inline IConnector::~IConnector() { }

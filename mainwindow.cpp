@@ -81,7 +81,7 @@ void MainWindow::send(QString str)
 	else
 	{
 		// TODO check success
-		this->connection->send(str.toUtf8());
+		this->connection->send(str);
 		printl_me(str);
 	}
 }
@@ -90,7 +90,8 @@ bool MainWindow::start(char which, QString add, int port)
 {
 	if (! connection)
 	{
-		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(*my_key, *he_key)) : dynamic_cast<IConnector*>(new Client(*my_key, *he_key));
+		connection = (which == 's') ? dynamic_cast<IConnector*>(new Server(sessions.get_session(active_session)))
+									: dynamic_cast<IConnector*>(new Client(sessions.get_session(active_session)));
 
 		connect(connection, &IConnector::on_error,		  [=](QString str) { this->printl(str, "red"); });
 		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->printl_he(str); });
@@ -131,7 +132,7 @@ void MainWindow::interpret_commands(QString str)
 	QStringList l = str.split(QRegExp("\\s*;s*"), QString::SkipEmptyParts);
 
 	for (QString str : l)
-		interpret_command(str.remove(0,1).trimmed());	// TODO ugly and unsafe
+		interpret_command(str.remove(0,1).trimmed());
 }
 
 void MainWindow::interpret_command(QString str)
@@ -159,33 +160,19 @@ void MainWindow::interpret_command(QString str)
 	else if (cmd == "clear")
 		ui->textBrowser->clear();
 	else if (cmd == "ls")
-	{
 		interpret_command("server, start, 127.0.0.1, 8080");
-	}
 	else if (cmd == "lc")
-	{
 		interpret_command("connect, 127.0.0.1, 8080");
-	}
-	else if (cmd == "set_keys")
-	{
-		my_key = new EcelKey(l[2], l[1].toLongLong());
-		he_key = new EcelKey(l[3], 0);
-	}
+	else if (cmd == "load_sessions")
+		sessions.load_sessions(l[1]);
+	else if (cmd == "set_session")
+		active_session = l[1];
 	else if (cmd == "get_keys")
-	{
 		printl("MyKid " +QString::number(my_key->kid) +" MyPos " +QString::number(my_key->pos) +" MyKey " +my_key->file.fileName() +" HeKey " +he_key->file.fileName(), "orange");
-	}
 	else if (cmd == "get_pos")
-	{
 		printl("MyPos " +QString::number(my_key->pos));
-	}
 	else
 		printl("Unknown Command: " +cmd, "red");
-}
-
-void MainWindow::print(QString msg)
-{
-	ui->textBrowser->insertPlainText(msg);
 }
 
 void MainWindow::printl(QString msg, QString clr)
@@ -222,6 +209,7 @@ void MainWindow::printl_he(QString str)
 MainWindow::~MainWindow()
 {
 	delete ui;
+
 	if (connection)
 		delete connection;
 	if (my_key)

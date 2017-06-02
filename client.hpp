@@ -11,12 +11,12 @@
 class Client : public IConnector
 {
 public:
-	Client(EcelKey const& my_key, EcelKey const& server_key);
+	Client(const Session& session);
 	~Client();
 
 	virtual bool start(QString add, int port) override;
 	virtual bool stop() override;
-	virtual bool send(QByteArray data) override;
+	virtual bool send(QString data) override;
 
 protected slots:
 	void on_data_ready() override;

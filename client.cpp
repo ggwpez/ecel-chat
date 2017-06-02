@@ -1,8 +1,8 @@
 #include "client.hpp"
 #include <QHostAddress>
 
-Client::Client(const EcelKey& my_key, const EcelKey& server_key)
-	: IConnector(my_key, server_key),
+Client::Client(Session const& session)
+	: IConnector(session),
 	  socket(new QTcpSocket())
 
 {
@@ -58,19 +58,23 @@ bool Client::stop()
 	}
 }
 
-bool Client::send(QByteArray data)
+bool Client::send(QString data)
 {
-	QByteArray encoded(Encoder::encode(data, this->my_key));
+	if (! data.size())
+		return true;
 
-	socket->write(encoded), socket->flush();
+	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.my_key));
 
-	return true;
+	bool ret(socket->write(encoded) == data.size());
+	socket->flush();
+
+	return ret;
 }
 
 void Client::on_data_ready()
 {
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
+	QByteArray msg(Encoder::decode(client->readAll(), *session.he_key));
 
 	emit on_thee_msg(QString::fromUtf8(msg));
 }

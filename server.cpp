@@ -4,20 +4,13 @@
 
 #include <QScopedPointer>
 
-Server::Server(const EcelKey& my_key, const EcelKey& client_key)
-	: IConnector(my_key, client_key),
-	  socket(new QTcpServer()),
+Server::Server(Session const& session)
+	: IConnector(session),
+	  socket(std::make_unique<QTcpServer>()),
 	  clients()
 {
 
 }
-
-Server::~Server()
-{
-	if (socket)
-		delete socket;
-}
-
 bool Server::start(QString add, int port)
 {
 	QString new_position("IP:" +QString::number(port));
@@ -28,7 +21,7 @@ bool Server::start(QString add, int port)
 		return false;
 	}
 
-	connect(socket, SIGNAL(newConnection()), this, SLOT(on_connected()));
+	connect(socket.get(), SIGNAL(newConnection()), this, SLOT(on_connected()));
 	if (! socket->listen(QHostAddress::Any, port))
 	{
 		emit on_error("Server cant listen on: " +new_position);
@@ -62,9 +55,9 @@ bool Server::stop()
 	}
 }
 
-bool Server::send(QByteArray data)
+bool Server::send(QString data)
 {
-	QByteArray encoded(Encoder::encode(data, this->my_key));
+	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.my_key));
 
 	for (auto const& client : clients)
 		client->write(encoded), client->flush();
@@ -75,7 +68,7 @@ bool Server::send(QByteArray data)
 void Server::on_data_ready()
 {
 	QTcpSocket* client = qobject_cast<QTcpSocket*>(sender());
-	QByteArray msg(Encoder::decode(client->readAll(), this->he_key));
+	QByteArray msg(Encoder::decode(client->readAll(), *session.he_key));
 
 	emit on_thee_msg(QString::fromUtf8(msg));
 }
@@ -89,7 +82,6 @@ void Server::on_connected()
 		connect(client, SIGNAL(readyRead()), this, SLOT(on_data_ready()));
 		connect(client, SIGNAL(disconnected()), this, SLOT(on_disconnected()));
 
-		// TODO emplace back
 		this->clients.push_back(client);
 		emit on_internal_msg("Client connected");
 	}

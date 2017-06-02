@@ -14,12 +14,11 @@
 class Server : public IConnector
 {
 public:
-	Server(EcelKey const& my_key, EcelKey const& client_key);
-	~Server();
+	Server(Session const& session);
 
 	bool start(QString add, int port) override;
 	bool stop() override;
-	bool send(QByteArray data) override;
+	bool send(QString data) override;
 
 public slots:
 	void on_data_ready() override;
@@ -27,7 +26,7 @@ public slots:
 	void on_disconnected() override;
 
 protected:
-	QTcpServer* socket;
+	std::unique_ptr<QTcpServer> socket;
 	std::vector<QTcpSocket*> clients;
 
 	QString address;

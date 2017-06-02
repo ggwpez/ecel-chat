@@ -4,7 +4,8 @@
 #include <QDebug>
 #include <QProcess>
 
-EcelKey::EcelKey(QString path, unsigned long long pos)
+EcelKey::EcelKey(QString path, len_t pos)
+	: path(path)
 {
 	QFile tmp(path);
 	tmp.open(QIODevice::ReadOnly);
