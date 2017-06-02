@@ -207,7 +207,7 @@ void MainWindow::interpret_command(QString str)
 		auto key1(std::make_shared<EcelKey>(l[4], l[2].toLongLong())),	// temps for strict evaluation order
 			 key2(std::make_shared<EcelKey>(l[5], l[3].toLongLong()));
 
-		sessions.add_session(l[1], key1, key1);	// TODO it are len_t not long long's
+		sessions.add_session(l[1], key1, key2);	// TODO it are len_t not long long's
 	}
 	else if (cmd == "save_sessions")
 	{
