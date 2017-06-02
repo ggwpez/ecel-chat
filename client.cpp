@@ -54,7 +54,7 @@ void Client::send(QString data)
 
 	QByteArray encoded(Encoder::encode(data.toUtf8(), *session.get_active_session()->my_key));
 
-	if (socket->write(encoded) != data.size())
+	if (socket->write(encoded) != encoded.size())
 		throw std::runtime_error("Send to socket failed");
 	socket->flush();
 }

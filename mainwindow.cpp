@@ -51,7 +51,6 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 
 QString const me("THIS"), he("THEE"),
 			  me_clr(""), he_clr("LightGreen");
-EcelKey* my_key,* he_key;
 
 void MainWindow::resizeEvent(QResizeEvent* e)
 {
@@ -196,9 +195,9 @@ void MainWindow::interpret_command(QString str)
 		}
 	}
 	else if (cmd == "ls")
-		interpret_command("server, start, 127.0.0.1, 8080");
+		interpret_command("server, start, 127.0.0.1, 8090");
 	else if (cmd == "lc")
-		interpret_command("connect, 127.0.0.1, 8080");
+		interpret_command("connect, 127.0.0.1, 8090");
 	else if (cmd == "get_sessions")
 		printl(sessions.to_str(), "orange");
 	else if (cmd == "make_session")
@@ -221,10 +220,6 @@ void MainWindow::interpret_command(QString str)
 		sessions.set_default_session(l[1]);
 	else if (cmd == "set_active_session")
 		sessions.set_active_session(l[1]);
-	else if (cmd == "get_keys")
-		printl("MyKid " +QString::number(my_key->kid) +" MyPos " +QString::number(my_key->pos) +" MyKey " +my_key->file.fileName() +" HeKey " +he_key->file.fileName(), "orange");
-	else if (cmd == "get_pos")
-		printl("MyPos " +QString::number(my_key->pos));
 	else
 		printl("Unknown Command: " +cmd, "red");
 }
@@ -267,8 +262,4 @@ MainWindow::~MainWindow()
 
 	if (connection)
 		delete connection;
-	if (my_key)
-		delete my_key;
-	if (he_key)
-		delete he_key;
 }
