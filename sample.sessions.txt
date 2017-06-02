@@ -1,0 +1,4 @@
+/make_session,maurice,1337,0,/media/maurice/KEY-STICK-000/0000.key,/media/maurice/KEY-STICK-000/0001.key
+/set_default_session,maurice
+/set_active_session,maurice
+/print,Sessions loaded
