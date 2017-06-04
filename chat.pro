@@ -20,7 +20,8 @@ SOURCES += main.cpp\
 	encoder.cpp \
 	ecel_key.cpp \
     session.cpp \
-    session_manager.cpp
+    session_manager.cpp \
+    event_manager.cpp
 
 HEADERS  += mainwindow.h \
 	server.hpp \
@@ -30,7 +31,8 @@ HEADERS  += mainwindow.h \
 	version.hpp \
 	ecel_key.hpp \
     session.hpp \
-    session_manager.hpp
+    session_manager.hpp \
+    event_manager.hpp
 
 FORMS    += mainwindow.ui
 QMAKE_CXXFLAGS += -std=c++14

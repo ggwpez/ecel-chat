@@ -1,2 +1,0 @@
-/load,sessions.txt
-/print,Config loaded

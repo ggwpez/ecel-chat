@@ -24,6 +24,7 @@ public slots:
 	void on_data_ready() override;
 	void on_connected() override;
 	void on_disconnected() override;
+	void on_error(QAbstractSocket::SocketError e) override;
 
 protected:
 	std::unique_ptr<QTcpServer> socket;

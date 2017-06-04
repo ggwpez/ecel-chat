@@ -3,6 +3,6 @@
 
 #include <QString>
 
-#define version (QString("'%1, %2'").arg(__DATE__).arg(__TIME__))
+#define version_str (QString("'%1, %2'").arg(__DATE__).arg(__TIME__))
 
 #endif // VERSION_HPP

@@ -11,12 +11,18 @@
 #include <QKeyEvent>
 #include <QFile>
 #include <QTemporaryFile>
+#include <QtConcurrent/QtConcurrent>
 #include <QDateTime>
+#include <QFuture>
+#include <QThread>
+#include <QTimer>
 #include <iostream>
+#include <functional>
+#include <map>
 
 MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	QMainWindow(parent),
-	ui(new Ui::MainWindow), sessions()
+	ui(new Ui::MainWindow), sessions(), events("./events/")
 {
 	ui->setupUi(this);
 	qApp->installEventFilter(this);
@@ -36,7 +42,9 @@ MainWindow::MainWindow(QString cmd, QWidget* parent) :
 	connect(new QShortcut(QKeySequence(Qt::Key_F11), this), &QShortcut::activated, [=]() { this->window()->setWindowState(window()->windowState() ^ Qt::WindowFullScreen); });
 	connect(new QShortcut(QKeySequence(Qt::CTRL + Qt::Key_M), this), &QShortcut::activated, [=]() { this->window()->showMinimized(); });
 	connect(new QShortcut(QKeySequence(Qt::Key_Escape), this), &QShortcut::activated, [=]() { this->ui->textEdit->clear(); });
+
 	connect(&sessions, &SessionManager::print, [=](QString str) { this->printl("SessionMng: " +str, "orange"); });
+	connect(&events, SIGNAL(interpret_commands(QString)), this, SLOT(interpret_commands(QString)));
 
 	QFile tmp("ecel");
 	if (! tmp.exists())
@@ -102,10 +110,21 @@ void MainWindow::start(char which, QString add, int port)
 									: dynamic_cast<IConnector*>(new Client(sessions));
 
 		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->printl_he(str); });
+		connect(connection, &IConnector::on_thee_msg,	  [=](QString str) { this->events.fire_event("on_msg", {"thee", str}); });
+		connect(connection, &IConnector::on_error_msg,	  [=](QString str) { this->printl(str, "red"); });
 		connect(connection, &IConnector::on_internal_msg, [=](QString str) { this->printl(str, "orange"); });
-	}
 
-	connection->start(add, port);
+		try
+		{ connection->start(add, port); }
+		catch (std::exception const& e)
+		{
+			printl("Exception: " +QString(e.what()), "red");
+			delete connection;
+			connection = nullptr;
+		}
+	}
+	else
+		printl("Server or Client are already running", "red");
 }
 
 void MainWindow::stop(char which)
@@ -145,6 +164,28 @@ void MainWindow::interpret_commands(QString str)
 
 void MainWindow::interpret_command(QString str)
 {
+	std::map<QString, std::function<void(QStringList const& v)>> fptrs;
+	fptrs["set_ui_browser_font"] = [=](QStringList const& v)  { ui->textBrowser->setFont(QFont(v[0])); };
+	fptrs["set_ui_edit_font"   ] = [=](QStringList const& v)  { ui->textEdit->setFont(QFont(v[0])); };
+
+/*	QPalette p;
+	p.setColor(QPalette::Base, Qt::black);
+	p.setColor(QPalette::Text, Qt::white);
+	ui->textBrowser->setPalette(p);*/
+
+	fptrs["set_ui_window_title"	] = [=](QStringList const& v) { window()->setWindowTitle(v[0]); };
+	fptrs["set_default_session"	] = [=](QStringList const& v) { sessions.set_default_session(v[0]); };
+	fptrs["set_active_session"	] = [=](QStringList const& v) { sessions.set_active_session(v[0]); };
+	fptrs["save_to_file"		] = [=](QStringList const& v) { sessions.save_to_file(v[0]); };
+	fptrs["get_sessions"		] = [=](QStringList const&  ) { printl(sessions.to_str(), "orange"); };
+	fptrs["disconnect"			] = [=](QStringList const&  ) { stop ('c'); };
+	fptrs["connect"				] = [=](QStringList const& v) { start('c', v[0], v[1].toInt()); };
+	fptrs["version"				] = [=](QStringList const&  ) { printl("Build: " +version_str, "orange"); };
+	fptrs["print"				] = [=](QStringList const& v) { printl(v[0]); };
+	fptrs["clear"				] = [=](QStringList const&  ) { ui->textBrowser->clear(); };
+	fptrs["ls"					] = [=](QStringList const&  ) { interpret_command("server, start, 127.0.0.1, 8090"); };
+	fptrs["lc"					] = [=](QStringList const&  ) { interpret_command("connect, 127.0.0.1, 8090"); };
+
 	QStringList l = str.split(QRegExp("\\,"));
 	for (QString& str : l)
 		str = str.trimmed();
@@ -163,8 +204,6 @@ void MainWindow::interpret_command(QString str)
 		else
 			printl("File '" +l[1] +"' not found", "red");
 	}
-	else if (cmd == "version" || cmd == "ver")
-		printl("Build " +version);
 	else if (cmd == "server")
 	{
 		if (l[1] == "start")
@@ -172,56 +211,65 @@ void MainWindow::interpret_command(QString str)
 		else if (l[1] == "stop")
 			stop('s');
 	}
-	else if (cmd == "connect")
-		start('c', l[1], l[2].toInt());
-	else if (cmd == "disconnect")
-		stop('c');
-	else if (cmd == "clear")
-		ui->textBrowser->clear();
 	else if (cmd == "system")
 	{
-		QProcess p;
+		QProcess* p(new QProcess());
+		QThread* d(new QThread());
 		l.removeFirst();
 		cmd = l[0];
 		l.removeFirst();
-		p.start(cmd, l);
+		p->moveToThread(d);
 
-		if (! p.waitForFinished(3000))
-			printl("Command failed", "red");
-		else
-		{
-			QString out(QString::fromUtf8(p.readAll()));
-			printl(out, "orange");
-		}
+		connect(p, static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
+					[=, p, d](int code, QProcess::ExitStatus status)
+					{
+						QTimer::singleShot(0, qApp, [=,p,d](){
+						printl("###TEST");
+						if (status != QProcess::ExitStatus::NormalExit)
+							throw std::runtime_error("Command crashed");
+						else if (code)
+							throw std::runtime_error("Command exited with " +std::to_string(code));
+						else
+							printl(QString::fromUtf8(p->readAll()), "orange");
+
+						delete p;
+						delete d;
+					});}
+				);
+		connect(p, &QProcess::errorOccurred,
+					[=, p, d](QProcess::ProcessError code)
+					{
+						QTimer::singleShot(0, qApp, [=,p,d](){
+						printl("###TEST");
+						throw std::runtime_error("Command crashed with ProcessError code: " +std::to_string(int(code))
+												 +"Please have a look at: http://doc.qt.io/qt-5/qprocess.html#ProcessError-enum");
+
+						delete p;
+						delete d;
+					});}
+				);
+
+		p->start(cmd, l);
 	}
-	else if (cmd == "ls")
-		interpret_command("server, start, 127.0.0.1, 8090");
-	else if (cmd == "lc")
-		interpret_command("connect, 127.0.0.1, 8090");
-	else if (cmd == "get_sessions")
-		printl(sessions.to_str(), "orange");
 	else if (cmd == "make_session")
 	{
-		// /make_session,steffen,138000,0,/media/vados/KEY-STICK-000/0000.key,/media/vados/KEY-STICK-000/0001.key
-		// <name> <my_pos> <he_pos> <my_key> <he_key>
-		auto key1(std::make_shared<EcelKey>(l[4], l[2].toLongLong())),	// temps for strict evaluation order
-			 key2(std::make_shared<EcelKey>(l[5], l[3].toLongLong()));
+		auto key1(std::make_shared<EcelKey>(l[4], l[2].toLongLong())),	// TODO it are len_t not long long's
+			 key2(std::make_shared<EcelKey>(l[5], l[3].toLongLong())); 	// temps for strict evaluation order
 
-		sessions.add_session(l[1], key1, key2);	// TODO it are len_t not long long's
+		sessions.add_session(l[1], key1, key2);
 	}
-	else if (cmd == "save_sessions")
-	{
-		// <path>
-		sessions.save_to_file(l[1]);
-	}
-	else if (cmd == "print")
-		printl(l[1]);
-	else if (cmd == "set_default_session")
-		sessions.set_default_session(l[1]);
-	else if (cmd == "set_active_session")
-		sessions.set_active_session(l[1]);
 	else
-		printl("Unknown Command: " +cmd, "red");
+	{
+		auto const& f(fptrs.find(cmd));
+
+		if (f != fptrs.end())
+		{
+			l.removeFirst();
+			f->second(l);
+		}
+		else
+			printl("Unknown Command: " +cmd, "red");
+	}
 }
 
 void MainWindow::printl(QString msg, QString clr)

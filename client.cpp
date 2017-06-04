@@ -1,14 +1,15 @@
 #include "client.hpp"
 #include <QHostAddress>
+#include <QMetaEnum>
 
 Client::Client(const SessionManager& session)
 	: IConnector(session),
 	  socket(new QTcpSocket())
-
 {
 	connect(socket, SIGNAL(readyRead()), this, SLOT(on_data_ready()));
 	connect(socket, SIGNAL(connected()), this, SLOT(on_connected()));
 	connect(socket, SIGNAL(disconnected()), this, SLOT(on_disconnected()));
+	connect(socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(on_error(QAbstractSocket::SocketError)));
 }
 
 Client::~Client()
@@ -22,26 +23,20 @@ void Client::start(QString add, int port)
 	if (socket->isOpen())
 		throw std::runtime_error("Client is already started");
 
-	socket->connectToHost(QHostAddress(add), port, QIODevice::ReadWrite);
+	this->address = add;
+	this->port = port;
 
-	if (socket->waitForConnected(7500))
-	{
-		this->address = add;
-		this->port = port;
-		emit on_internal_msg("Connected to server");
-	}
-	else
-		throw std::runtime_error("Could not connect to server");
+	socket->connectToHost(QHostAddress(add), port, QIODevice::ReadWrite);
 }
 
 void Client::stop()
 {
 	if (socket->isOpen())
 	{
+		this->address = ""; this->port = 0;
+
 		socket->disconnectFromHost();
 		socket->close();
-
-		this->address = ""; this->port = 0;
 	}
 	else
 		throw std::runtime_error("Client already stopped");
@@ -56,6 +51,7 @@ void Client::send(QString data)
 
 	if (socket->write(encoded) != encoded.size())
 		throw std::runtime_error("Send to socket failed");
+
 	socket->flush();
 }
 
@@ -69,13 +65,27 @@ void Client::on_data_ready()
 
 void Client::on_connected()
 {
-	this->address = "", this->port = 0;
 	emit on_internal_msg("Server connected");
 }
 
 void Client::on_disconnected()
 {
-	this->address = "", this->port = 0;
-	socket->close();
+	//socket->connectToHost(QHostAddress(this->address), port, QIODevice::ReadWrite);
+	//this->address = "", this->port = 0;
+	//socket->close();
 	emit on_internal_msg("Server disconnected");
+}
+
+#include <QTimer>
+void Client::on_error(QAbstractSocket::SocketError e)
+{
+	QMetaEnum metaEnum = QMetaEnum::fromType<QAbstractSocket::SocketError>();
+
+	if (e != QAbstractSocket::SocketError::RemoteHostClosedError)
+	{
+		QTimer::singleShot(5000, [=]()
+			{ socket->connectToHost(QHostAddress(this->address), port, QIODevice::ReadWrite); });
+
+		emit on_error_msg(QString(metaEnum.valueToKey(e)) +" Autoreconnect is enabled, trying again in 5 sec");
+	}
 }

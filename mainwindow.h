@@ -6,6 +6,7 @@
 #include "client.hpp"
 #include "server.hpp"
 #include "session_manager.hpp"
+#include "event_manager.hpp"
 
 namespace Ui
 {
@@ -27,13 +28,14 @@ private:
 	IConnector* connection = nullptr;
 	SessionManager sessions;
 	QString active_session;
+	EventManager events;
 
 protected:
 	void resizeEvent(QResizeEvent* e);
 	bool press_le_key(QKeyEvent* e);
 	bool eventFilter(QObject* obj, QEvent* event);
 	void interpret_input(QString str);
-	void interpret_commands(QString str);
+	Q_SLOT void interpret_commands(QString str);
 	void interpret_command(QString str);
 	void send(QString str);
 	void start(char which, QString add, int port);

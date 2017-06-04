@@ -8,6 +8,7 @@
 #include <QByteArray>
 #include <QString>
 #include <QObject>
+#include <QAbstractSocket>
 
 class IConnector : public QObject
 {
@@ -28,11 +29,13 @@ signals:
 	void on_thee_msg(QString str);
 	// Messages, like 'server listening now'
 	void on_internal_msg(QString);
+	void on_error_msg(QString);
 
 protected slots:
 	virtual void on_data_ready() = 0;
 	virtual void on_connected() = 0;
 	virtual void on_disconnected() = 0;
+	virtual void on_error(QAbstractSocket::SocketError) = 0;
 
 protected:
 	SessionManager const& session;

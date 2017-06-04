@@ -90,3 +90,8 @@ void Server::on_disconnected()
 
 	emit on_internal_msg("Client disconnected");
 }
+
+void Server::on_error(QAbstractSocket::SocketError e)
+{
+	emit on_error_msg("Unhandled Exception in server");
+}
